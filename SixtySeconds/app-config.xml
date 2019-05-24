@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<config>
+  <Google>
+    <SpreadsheetID>1MMmBg-MoSwpZ0-Y8ZDWEhqvjaEGH9BoFVL-8JbdcCsw</SpreadsheetID>
+    <SheetRows>
+      <FirstQuestion>3</FirstQuestion>
+    </SheetRows>
+    <SheetColumns>
+      <TeamAnswered>E</TeamAnswered>
+      <Answered>F</Answered>
+      <Place>G</Place>
+      <Distance>H</Distance>
+    </SheetColumns>
+  </Google>
+  <SixtySeconds>
+    <PubHtml>https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6OmCGk63_3JdI3_tmHYsBOSUB3cnodE8_CSuBzhDPHrPPF4a5T2ts24-OE25rZ3tuBXej84ux2dTk/pubhtml</PubHtml>
+    <Team>Подозрительные лица</Team>
+  </SixtySeconds>
+</config>
