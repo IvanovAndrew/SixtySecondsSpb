@@ -30,6 +30,7 @@ type Answers = private Answers of Answer array
     module Answers = 
         
         let ofArray arr = Answers arr
+        let ofSeq seq = seq |> Array.ofSeq |> ofArray
         
         let getAnswer questionNumber (Answers a) = 
             let index = 
@@ -124,3 +125,17 @@ type GameDay =
             |> Seq.map (fun t -> getAnswer gameDay t question)
             |> Seq.filter Answer.isRight
             |> Seq.length
+
+        /// 
+        let getWinnerTeam gameDay = 
+
+            gameDay
+            |> getTeams
+            |> Seq.maxBy (fun t -> totalAnswered gameDay t gameDay.QuestionsCount)
+
+        let getTopNTeams gameDay n = 
+            
+            gameDay
+            |> getTeams
+            |> Seq.sortByDescending (fun t -> totalAnswered gameDay t gameDay.QuestionsCount)
+            |> Seq.take n

@@ -12,7 +12,6 @@ type WriteMode =
 
 type TeamChartMode = 
     | Show 
-    | Save of string
 
 type CommandLineOption = 
     {
@@ -83,14 +82,9 @@ let rec parseCommandLine argv optionsSoFar =
     
     | "-show" :: tail ->
         
-        match tail with 
-        | x :: xs when x.[0] <> '-' -> parseCommandLine xs {optionsSoFar with TeamChart = Some <| Save x}
-        | _ -> parseCommandLine tail {optionsSoFar with TeamChart = Some <| Show}
-
+        parseCommandLine tail {optionsSoFar with TeamChart = Some <| Show}
 
     | x::xs -> failwithf "Option '%s' is unrecognized" x
-
-
 
 
 [<EntryPoint>]
@@ -116,8 +110,8 @@ let main argv =
             sixtySeconds.PubHtml
             |> Parser.parse sheetInput
 
-        let myTeamName = Config.GetSample().SixtySeconds.Team |> NoEmptyString.ofString
-        let myTeam = teams |> Seq.find (fun t -> t.Name = myTeamName)
+        let myTeamId = Config.GetSample().SixtySeconds.TeamId |> PositiveNum.ofInt
+        let myTeam = teams |> Seq.find (fun t -> t.ID = myTeamId)
 
         let outParams = outputParams myTeam gameDay
 
@@ -128,8 +122,14 @@ let main argv =
         match options.TeamChart with 
         | Some v -> 
             match v with 
-            | Save filename -> ()
-            | Show -> GoogleChartService.showGraphic outParams
+            | Show -> 
+                
+                let teams = 
+                    GameDay.getTopNTeams gameDay 1
+                    |> Seq.append [myTeam]
+                
+                [Places; RightAnswers]
+                |> Seq.iter (GoogleChart.showGraphic gameDay teams)
         | None -> ()
         
 
