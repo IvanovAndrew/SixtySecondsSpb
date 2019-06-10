@@ -26,6 +26,11 @@ module GoogleChart =
             Title : string
         }
 
+    [<RequireQualifiedAccess>]
+    type private ChartOption = 
+        | Places of int
+        | RightAnswers of int
+
     let private createAxis a = 
         
         let axis = new GoogleAxis()
@@ -36,11 +41,6 @@ module GoogleChart =
         axis.title <- a.Title
         axis
         
-        //let graphicData team = 
-        //    team 
-        //    |> places
-        //    |> List.mapi (fun i p -> i+1, p)
-
 
     let private getData gameDay teams chart = 
         
@@ -68,22 +68,23 @@ module GoogleChart =
 
     let private getOptions (day : DateTime) questionsCount chart = 
         
-        let vAxis, hAxis = 
+        let hAxis = 
+            {Direction = Forward; Ticks = [|0..2..questionsCount|]; Title = "Номер вопроса"; }
+            |> createAxis
+
+        let vAxis = 
             match chart with 
-            | Places -> 
-                {Direction = Back; Ticks = [|1..2..21|]; Title = "Место"} 
-                |> createAxis,
-                {Direction = Forward; Ticks = [|0..4..questionsCount|]; Title = "Номер вопроса"; }
+            | ChartOption.Places worstPlace -> 
+                {Direction = Back; Ticks = [|1..2..worstPlace|]; Title = "Место"} 
                 |> createAxis
 
-            | RightAnswers -> 
-                {Direction = Forward; Ticks = [|0..5..30|]; Title = "Правильных ответов"}
-                |> createAxis,
-                {Direction = Forward; Ticks = [|0..4..questionsCount|]; Title = "Номер вопроса"}
+            | ChartOption.RightAnswers maxRightAnswers -> 
+                {Direction = Forward; Ticks = [|0..3..maxRightAnswers|]; Title = "Правильных ответов"}
                 |> createAxis
+                
         
 
-        XPlot.GoogleCharts.Configuration.Options
+        Configuration.Options
             ( 
                 title = day.ToShortDateString()
                 , curveType = "function"
@@ -108,7 +109,27 @@ module GoogleChart =
 
         let options = 
             let questionsCount = gameDay.QuestionsCount  |> PositiveNum.value
-            getOptions gameDay.Day questionsCount chart 
+
+            let chartOptions = 
+                match chart with 
+                | Places -> 
+                    
+                    let worstPlace = 
+                        data 
+                        |> Seq.map (fun l -> l |>  List.map snd |> List.max)
+                        |> Seq.max
+
+                    ChartOption.Places worstPlace
+                | RightAnswers -> 
+                    
+                    let maxRightAnswers = 
+                        data 
+                        |> Seq.map (fun l -> l |>  List.map snd |> List.max)
+                        |> Seq.max
+                    
+                    ChartOption.RightAnswers maxRightAnswers
+
+            getOptions gameDay.Day questionsCount chartOptions
 
         let labels = teams |> Seq.map (fun t -> t.Name) |> Seq.map NoEmptyString.value
 

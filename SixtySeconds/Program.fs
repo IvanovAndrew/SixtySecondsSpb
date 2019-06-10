@@ -11,11 +11,12 @@ type WriteMode =
     | ReadAndWrite of string
 
 type TeamChartMode = 
-    | Show 
+    | Show of int
 
 type CommandLineOption = 
     {
         SheetId : string option
+        TeamId : PositiveNum
         WriteMode : WriteMode
         TeamChart : TeamChartMode option
     }
@@ -62,9 +63,9 @@ let writeToSpreadsheet sheetName outputParams =
     |> List.iter update
 
 // Откуда читаем -read 06.05. 
+// Какая команда интересует -team 15
 // Куда пишем -write 06.05.2019
 // Показывать график -show
-// Показать и сохранить график -saveGraphic "06.05."
 
 let rec parseCommandLine argv optionsSoFar = 
     
@@ -76,13 +77,18 @@ let rec parseCommandLine argv optionsSoFar =
         let newOptions = {optionsSoFar with SheetId = Some sheetInput}
         parseCommandLine tail newOptions
 
+    | "-team" :: team :: tail -> 
+        
+        parseCommandLine tail {optionsSoFar with TeamId = team |> int |> PositiveNum.ofInt}
+
     | "-write" :: sheetOutput :: tail -> 
         
         parseCommandLine tail {optionsSoFar with WriteMode = sheetOutput |> ReadAndWrite}
     
-    | "-show" :: tail ->
+    | "-show" :: topN :: tail ->
         
-        parseCommandLine tail {optionsSoFar with TeamChart = Some <| Show}
+        let options = {optionsSoFar with TeamChart = topN |> int |> Show |> Some }
+        parseCommandLine tail options
 
     | x::xs -> failwithf "Option '%s' is unrecognized" x
 
@@ -95,6 +101,7 @@ let main argv =
         let defaultOptions = 
             {
                 SheetId = None
+                TeamId = Config.GetSample().SixtySeconds.TeamId |> PositiveNum.ofInt
                 WriteMode = ReadOnly
                 TeamChart = None
             }
@@ -110,26 +117,33 @@ let main argv =
             sixtySeconds.PubHtml
             |> Parser.parse sheetInput
 
-        let myTeamId = Config.GetSample().SixtySeconds.TeamId |> PositiveNum.ofInt
-        let myTeam = teams |> Seq.find (fun t -> t.ID = myTeamId)
+        let myTeam = teams |> Seq.tryFind (fun t -> t.ID = options.TeamId)
 
-        let outParams = outputParams myTeam gameDay
+        match myTeam with 
+        | Some team -> 
 
-        match options.WriteMode with 
-        | ReadAndWrite sheetId -> writeToSpreadsheet sheetId outParams
-        | _ -> ()
+            let outParams = outputParams team gameDay
 
-        match options.TeamChart with 
-        | Some v -> 
-            match v with 
-            | Show -> 
+
+            match options.WriteMode with 
+            | ReadAndWrite sheetId -> writeToSpreadsheet sheetId outParams
+            | _ -> ()
+
+            match options.TeamChart with 
+            | Some v -> 
+                match v with 
+                | Show topN -> 
                 
-                let teams = 
-                    GameDay.getTopNTeams gameDay 1
-                    |> Seq.append [myTeam]
-                
-                [Places; RightAnswers]
-                |> Seq.iter (GoogleChart.showGraphic gameDay teams)
+                    let teams = 
+                        GameDay.getTopNTeams gameDay topN
+                        |> Seq.rev
+                        |> Seq.append [team]
+                        |> Seq.distinct
+                    
+
+                    [Places; RightAnswers]
+                    |> Seq.iter (GoogleChart.showGraphic gameDay teams)
+            | None -> ()
         | None -> ()
         
 
