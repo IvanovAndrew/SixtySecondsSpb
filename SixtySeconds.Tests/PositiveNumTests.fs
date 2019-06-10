@@ -1,29 +1,15 @@
 ﻿namespace PositiveNum.Tests
 
-open FsCheck
-open FsCheck.NUnit
-
 open NUnit.Framework
 
-open Utils
 
-open System
 
-module NUnitAssert = 
-    
-    let areEqual a b = Assert.AreEqual(a, b)
-    let trueForAll seq f = 
-        let res = 
-            seq
-            |> Seq.forall f
-        Assert.True res
-
-    
 
 [<TestFixture>]
 module PositiveNumTests = 
-    
-    open NUnitAssert
+        
+    open Utils
+    open System
 
     [<Test>]
     let ``Positive num. Create of negative number. Should failed``() =

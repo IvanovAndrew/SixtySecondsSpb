@@ -133,12 +133,18 @@ module GameDay =
         |> getTeams
         |> Seq.maxBy (fun t -> totalAnswered gameDay t gameDay.QuestionsCount)
 
+
+    
     let getTopNTeams gameDay n = 
-            
+        
         gameDay
         |> getTeams
-        |> Seq.sortByDescending (fun t -> totalAnswered gameDay t gameDay.QuestionsCount)
-        |> Seq.take n
+        |> Seq.groupBy (fun t -> totalAnswered gameDay t gameDay.QuestionsCount)
+        |> Seq.sortByDescending fst
+        |> Seq.fold (fun res group -> 
+                            if n > Seq.length res 
+                            then group |> snd |> Seq.append res 
+                            else res) Seq.empty
 
     
 
