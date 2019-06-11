@@ -50,11 +50,15 @@ module PositiveNum =
     
     let value (PositiveNum i) = i
 
+    let numOne = ofInt 1
+
+    let previous (PositiveNum i) = ofInt <| i - 1
+    let next (PositiveNum i) = ofInt <| i + 1
+
     let createRange first step last = 
         [value first.. value step .. value last ]
         |> List.map ofInt 
 
     let createNaturalRange last = 
         
-        let numOne = ofInt 1
         createRange numOne numOne last 

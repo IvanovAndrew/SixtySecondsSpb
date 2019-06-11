@@ -27,8 +27,6 @@ let writeToSpreadsheet sheetName outputParams =
     let service = SpreadsheetService.getService ServiceMode.ReadWrite
     let firstRow = google.SheetRows.FirstQuestion
 
-    
-
     let getRange column valuesCount = 
                 
         sprintf "%s!%s%d:%s%d" sheetName column firstRow column <| firstRow + valuesCount
@@ -39,7 +37,7 @@ let writeToSpreadsheet sheetName outputParams =
         SpreadsheetService.createValueRange range MajorDimension.Column values
 
     let teamAnswered, rightAnsweredOn, places, distance = 
-        outputParams.TeamAnswers |> List.map (Answer.isRight >> (fun b -> if b then "'+" else "")),
+        outputParams.TeamAnswers |> List.map (function Right ->  "'+" | _ -> ""),
         outputParams.RightAnswersOn |> List.map string,
         outputParams.Places |> List.map ((fun p -> PositiveNum.value p.From, PositiveNum.value p.To) >> (fun (a, b) -> sprintf "%d-%d" a b)),
         outputParams.Distance |> List.map string
@@ -123,7 +121,6 @@ let main argv =
         | Some team -> 
 
             let outParams = outputParams team gameDay
-
 
             match options.WriteMode with 
             | ReadAndWrite sheetId -> writeToSpreadsheet sheetId outParams

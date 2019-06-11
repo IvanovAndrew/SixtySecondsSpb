@@ -23,8 +23,6 @@ module Answer =
         
     let ofBool isRight = if isRight then Right else Wrong
         
-    let isRight answer = match answer with | Right -> true | _ -> false
-
 type Answers = private Answers of Answer array
     
 module Answers = 
@@ -71,12 +69,21 @@ module GameDay =
 
     /// How many correct answers did the team give as of question Q
     let totalAnswered gameDay team questionNumber = 
+        
+        let getAnswer' = getAnswer gameDay team
+
+        let rec getTotalAnswered acc question = 
             
-        questionNumber
-        |> PositiveNum.createNaturalRange 
-        |> List.map (fun q -> getAnswer gameDay team q)
-        |> List.filter Answer.isRight
-        |> List.length
+            let newAcc = 
+                match getAnswer' question with 
+                | Right -> acc + 1
+                | Wrong -> acc
+
+            if question = PositiveNum.numOne then newAcc
+            else 
+                getTotalAnswered newAcc <| PositiveNum.previous question
+        
+        getTotalAnswered 0 questionNumber
 
     /// Отставание команды A от лидера по состоянию на вопрос Q
     let getDistanceFromFirstPlace gameDay myTeam questionNumber = 
@@ -88,34 +95,33 @@ module GameDay =
             |> getTeams
             |> Seq.map (fun t -> totalAnswered gameDay t questionNumber)
             |> Seq.max
-
+        
         teamAnsweredOn - leaderAnsweredOn
 
     /// Team A is behind the leader as of question Q
     let getPlaceAfterQuestion gameDay myTeam questionNumber = 
             
-        let teamAnswered = totalAnswered gameDay myTeam questionNumber
+        let threshold = totalAnswered gameDay myTeam questionNumber
 
-        let allAnswers = 
+        let processTeam (placeUp, placeDown) team = 
+            
+            if team = myTeam then placeUp, placeDown
+            else 
+                let answered = totalAnswered gameDay team questionNumber
+                
+                if answered > threshold then placeUp |> PositiveNum.next, placeDown |> PositiveNum.next
+                elif answered = threshold then placeUp, placeDown |> PositiveNum.next
+                else placeUp, placeDown
+
+
+        let placeUp, placeDown = 
             gameDay
             |> getTeams
-            |> Seq.map (fun t -> totalAnswered gameDay t questionNumber)
+            |> Seq.fold processTeam (PositiveNum.numOne, PositiveNum.numOne)
             
-        let placeUp = 
-            allAnswers 
-            |> Seq.filter (fun a -> a > teamAnswered)
-            |> Seq.length
-            |> (+) 1
-
-        let placeDown = 
-            allAnswers 
-            |> Seq.filter ((=) teamAnswered)
-            |> Seq.length
-            |> (+) (placeUp - 1)
-
         {
-            From = placeUp |> PositiveNum.ofInt
-            To = placeDown |> PositiveNum.ofInt
+            From = placeUp
+            To = placeDown
         }
 
     /// Number of teams that correctly answered on question 
@@ -123,16 +129,7 @@ module GameDay =
         gameDay
         |> getTeams
         |> Seq.map (fun t -> getAnswer gameDay t question)
-        |> Seq.filter Answer.isRight
-        |> Seq.length
-
-    /// 
-    let getWinnerTeam gameDay = 
-
-        gameDay
-        |> getTeams
-        |> Seq.maxBy (fun t -> totalAnswered gameDay t gameDay.QuestionsCount)
-
+        |> Seq.sumBy (function Right -> 1 | _ -> 0)
 
     
     let getTopNTeams gameDay n = 
@@ -146,7 +143,8 @@ module GameDay =
                             then group |> snd |> Seq.append res 
                             else res) Seq.empty
 
-    
+    /// 
+    let getWinnerTeam gameDay = getTopNTeams gameDay 1
 
 
     /// 
@@ -174,9 +172,7 @@ module GameDay =
             
             questions
             |> Seq.map (getAnswer gameDay team)
-            |> Seq.filter Answer.isRight
-            |> Seq.length
-
+            |> Seq.sumBy (function Right -> 1 | _ -> 0)
 
         gameDay
         |> getTeams
