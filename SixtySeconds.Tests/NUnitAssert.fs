@@ -10,3 +10,6 @@ let trueForAll seq f =
         seq
         |> Seq.forall f
     Assert.True res
+
+let Pass() = Assert.Pass()
+let Fail() = Assert.Fail()

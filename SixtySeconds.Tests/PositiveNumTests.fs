@@ -2,9 +2,6 @@
 
 open NUnit.Framework
 
-
-
-
 [<TestFixture>]
 module PositiveNumTests = 
         
@@ -16,26 +13,26 @@ module PositiveNumTests =
         
         try
             -1 |> PositiveNum.ofInt |> ignore
-            Assert.Fail()
+            NUnitAssert.Fail()
         with 
             | :? ArgumentException -> Assert.Pass()
-            | _ -> Assert.Fail()
+            | _ -> NUnitAssert.Fail()
 
     [<Test>]
     let ``Positive num. Create of zero. Should failed``() = 
 
         try
             0 |> PositiveNum.ofInt |> ignore
-            Assert.Fail()
+            NUnitAssert.Fail()
         with 
             | :? ArgumentException -> Assert.Pass()
-            | _ -> Assert.Fail()
+            | _ -> NUnitAssert.Fail()
 
     [<Test>]
     let ``Positive num. Create of positive num. Should OK``() = 
         
         let one = 1 |> PositiveNum.ofInt
-        Assert.Pass()
+        NUnitAssert.Pass()
 
     // TODO Add FsCheck here
     [<Test>]
