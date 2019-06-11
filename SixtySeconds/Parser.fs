@@ -1,9 +1,14 @@
 ﻿module Parser
 
-open FSharp.Data
 open System
+open System.Text.RegularExpressions
+
+open FSharp.Data
+
 open Utils
 open Domain
+
+open FSharp.Data
 
 type ParserOption = 
         {
@@ -12,6 +17,19 @@ type ParserOption =
             SumColumn : int
             AnswersColumns : int list
         }
+
+module HtmlNode = 
+    
+    let innerText (node : HtmlNode) = node.InnerText()
+    let elements (node : HtmlNode) = node.Elements()
+    let descendants (node : HtmlNode) = node.Descendants()
+    let attributes (node : HtmlNode) = node.Attributes()
+    let attribute name (node : HtmlNode) = node.Attribute(name)
+
+module Attribute = 
+    
+    let name (attribute : HtmlAttribute) = attribute.Name()
+    let value (attribute : HtmlAttribute) = attribute.Value()
 
 
 let parse sheetName url = 
@@ -22,6 +40,10 @@ let parse sheetName url =
     let sum = "сум"
     let firstAnswer = "1"
     let rightAnswer = "1"
+
+    
+
+    let firstElement = HtmlNode.elements >> Seq.head
             
     let document = 
 
@@ -36,37 +58,39 @@ let parse sheetName url =
         |> StringUtils.replace "<style>@import url(https://fonts.googleapis.com/css?kit=o--8Et3j0xElSo4Jk-6CSN_pgL91BiSHK8etQbSopkk);</style>" "" 
         |> HtmlDocument.Parse 
 
-    let sheetId = 
-        
-        let elem = 
+    let year = 
+        let title = 
             document.Elements()
             |> List.ofSeq
             |> List.head
+            |> HtmlNode.descendants
+            |> Seq.item 2
+            |> HtmlNode.innerText
+
+        let m = Regex.Match(title, "\d{4}|\d{4}\\\d{4}")
+        m.Value |> int
+
+    let sheetId = 
         
         let childs = 
-            elem.Descendants() 
+            document.Elements()
             |> List.ofSeq
-
-        let c = 
-            childs
-            |> List.filter (fun c -> c.InnerText().Contains(sheetName))
             |> List.head
-            
+            |> HtmlNode.descendants
+
         let node = 
-            c.Descendants()
-            |> Seq.filter (fun n -> n.InnerText() = sheetName)
-            |> Seq.filter (fun n -> n.Attributes() |> List.exists (fun a -> a.Name() = "id"))
+            childs
+            |> Seq.filter (HtmlNode.innerText >> StringUtils.containsString sheetName)
+            |> Seq.head
+            |> HtmlNode.descendants
+            |> Seq.filter (HtmlNode.innerText >> ((=) sheetName))
+            |> Seq.filter (HtmlNode.attributes >> List.exists (Attribute.name >> ((=) "id")))
             |> Seq.head
             
-        node.Attribute("id").Value()
+        node
+        |> HtmlNode.attribute "id"
+        |> Attribute.value
         |> StringUtils.replace "sheet-button-" ""
-
-    let elements (node : HtmlNode) = node.Elements()
-
-    let firstElement node = 
-        node 
-        |> elements 
-        |> Seq.head
 
     let sheetNode = 
         
@@ -74,73 +98,65 @@ let parse sheetName url =
             document.Elements()
             |> Seq.head
 
-        elem.Descendants()
+        elem
+        |> HtmlNode.descendants
         |> Seq.filter (fun n -> n.HasAttribute("id", sheetId))
         |> Seq.head
         |> firstElement
         |> firstElement
-        |> elements
-        |> List.ofSeq
-        |> List.tail
-        |> List.head
+        |> HtmlNode.elements
+        |> Seq.tail
+        |> Seq.head
 
-    let parseOptions() = 
+    let parserOptions = 
         
         let optionsLineNode = 
             
             sheetNode
             |> firstElement
-            |> elements
+            |> HtmlNode.elements
 
         let isInt s = 
             match Int32.TryParse(s) with 
-            | (true, _) -> true
+            | (true, v) -> true
             | _ -> false
 
-        let q = 
+        let answerColumns = 
             optionsLineNode
             |> Seq.mapi (fun i node -> if node.DirectInnerText() |> isInt then Some i else None)
-            |> Seq.choose (fun i -> i)
+            |> Seq.choose id
             |> List.ofSeq
 
         {
-            IdColumn = optionsLineNode |> Seq.findIndex (fun n -> n.InnerText() = number)
-            NameColumn = optionsLineNode |> Seq.findIndex (fun n -> n.InnerText() = "")
-            SumColumn = optionsLineNode |> Seq.findIndex (fun n -> n.InnerText() = sum)
-            AnswersColumns = q
+            IdColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) number))
+            NameColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) ""))
+            SumColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) sum))
+            AnswersColumns = answerColumns
         }
-
-    let parserOptions = parseOptions() 
 
     let parseGameDay() = 
         
         let parse node = 
             
-            let innerTextOfElement index n = 
-                
-                let t = 
-                            
-                    n 
-                    |> elements
-                    |> Seq.item index 
-                
-                t.InnerText()
+            let innerTextOfNode n index = 
+                n 
+                |> HtmlNode.elements
+                |> Seq.item index 
+                |> HtmlNode.innerText
 
-            
+            let innerTextOfNode' = innerTextOfNode node
 
             let team = 
                 {
-                    ID = node |> innerTextOfElement parserOptions.IdColumn |> int |> PositiveNum.ofInt 
-                    Name = node |> innerTextOfElement parserOptions.NameColumn |> NoEmptyString.ofString
+                    ID = parserOptions.IdColumn |> innerTextOfNode' |> int |> PositiveNum.ofInt 
+                    Name = parserOptions.NameColumn |> innerTextOfNode' |> NoEmptyString.ofString
                 }
 
             let answers = 
                 
                 parserOptions.AnswersColumns
-                |> List.map (fun column -> node |> innerTextOfElement column |> (=) rightAnswer) 
-                |> List.map Answer.ofBool
-                |> Array.ofList
-                |> Answers.ofArray
+                |> List.map (innerTextOfNode' >> ((=) rightAnswer) >> Answer.ofBool)
+                |> Answers.ofSeq
 
             team, answers
 
@@ -148,29 +164,35 @@ let parse sheetName url =
         let filterBySheetId n = 
                     
             n 
-            |> elements 
+            |> HtmlNode.elements 
             |> List.exists (fun c -> StringUtils.startsWith sheetId <| c.AttributeValue("id"))
 
                 
-        let exceptLast list = 
-            list 
-            |> List.rev
-            |> List.tail
-            |> List.rev
+        let exceptLast s = 
+            s
+            |> Seq.rev
+            |> Seq.tail
+            |> Seq.rev
 
         sheetNode
-        |> elements
-        |> List.ofSeq
-        |> List.tail
-        |> List.filter filterBySheetId
+        |> HtmlNode.elements
+        |> Seq.tail
+        |> Seq.filter filterBySheetId
         |> exceptLast
-        |> List.map parse
-        |> Map.ofList
+        |> Seq.map parse
+        |> Map.ofSeq
     
+    let gameDate = 
+        let m = Regex.Match(sheetName, "(\d{1,2})\.(\d{1,2})")
+        let day = m.Groups.[1].Value |> int
+        let month = m.Groups.[2].Value |> int
+
+        new DateTime(year, month, day)
+
     let map = parseGameDay()
 
     let teams = map |> Map.toSeq |> Seq.map fst
     let questionsCount = map |> Map.find (teams |> Seq.head) |> Answers.count
-    let gameDay = {Day = DateTime.Now; Answers = map; QuestionsCount = questionsCount}
+    let gameDay = {Day = gameDate; Answers = map; QuestionsCount = questionsCount}
 
     teams, gameDay

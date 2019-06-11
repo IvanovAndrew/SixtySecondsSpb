@@ -15,6 +15,8 @@ module StringUtils =
         str
         |> String.exists Char.IsLetter
 
+    let containsString substring (string : string) = string.Contains(substring)
+
     let startsWith subString (string : string) = string.StartsWith(subString)
 
 
