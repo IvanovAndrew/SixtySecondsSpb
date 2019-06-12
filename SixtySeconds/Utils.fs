@@ -17,7 +17,7 @@ module StringUtils =
 
     let containsString substring (string : string) = string.Contains(substring)
 
-    let startsWith subString (string : string) = string.StartsWith(subString)
+    let startsWith (subString : string) (string : string) = string.StartsWith(subString)
 
 
 type NoEmptyString = private NoEmptyString of string
