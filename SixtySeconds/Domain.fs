@@ -178,3 +178,43 @@ module GameDay =
         |> getTeams
         |> Seq.map (fun t -> t, answeredOnDifficultQuestions t)
         |> Seq.sortByDescending (fun (_, a) -> a)
+
+type SeasonTable = 
+    {
+        Results : Map<Team, decimal seq>
+        Table : (Team * decimal) seq
+        GamesCount : PositiveNum
+    }
+
+module SeasonTable = 
+    
+    let ofSeq data = 
+        
+        {
+            Table = data |> Seq.map (fun (t, r) -> t, r |> Seq.sum) |> Seq.sortByDescending snd
+            Results = data |> Map.ofSeq
+            GamesCount = data |> Seq.map (snd >> Seq.length) |> Seq.max |> PositiveNum.ofInt
+        }
+
+
+    let topNResult resultsToCount seasonTable = 
+            
+        let gamesToCount = 
+            if resultsToCount > seasonTable.GamesCount
+            then seasonTable.GamesCount
+            else resultsToCount
+
+        seasonTable.Results
+        |> Map.toSeq
+        |> Seq.map (fun (team, results) -> 
+                                
+                        let length = results |> Seq.length |> PositiveNum.ofInt
+
+                        let topResults = 
+                            if length < gamesToCount 
+                            then results
+                            else results |> Seq.sortByDescending id |> Seq.take (gamesToCount |> PositiveNum.value)
+                                
+                        team, topResults |> Seq.sum
+                        )
+        |> Seq.sortByDescending snd

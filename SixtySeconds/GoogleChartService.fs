@@ -39,6 +39,7 @@ module GoogleChart =
         axis.format <- "decimal"
         axis.minValue <- a.Ticks |> Array.head
         axis.title <- a.Title
+        axis.maxTextLines <- 1
         axis
         
 
@@ -82,13 +83,20 @@ module GoogleChart =
                 {Direction = Forward; Ticks = [|0..3..maxRightAnswers|]; Title = "Правильных ответов"}
                 |> createAxis
                 
+        let legend = 
+            Legend
+                (
+                    alignment = "center"
+                    , position = "top"
+                    , textStyle = TextStyle(fontSize = 16)
+                )
         
 
         Configuration.Options
             ( 
                 title = day.ToShortDateString()
                 , curveType = "function"
-                , legend = Legend(position = "bottom")
+                , legend = legend
                 , vAxis = vAxis
                 , hAxis = hAxis
                 , height = 800
@@ -136,5 +144,18 @@ module GoogleChart =
         data
         |> GoogleChart.Line
         |> GoogleChart.WithOptions options
+        |> GoogleChart.WithLabels labels
+        |> GoogleChart.Show
+
+    let showTable columns labels = 
+        
+        let castColumn c = 
+            c
+            |> Seq.map (fun (x, y) -> x.Name |> NoEmptyString.value, y :> value)
+
+        columns 
+        |> List.map castColumn
+        |> GoogleChart.Table
+        |> GoogleChart.WithOptions(Options(showRowNumber = true))
         |> GoogleChart.WithLabels labels
         |> GoogleChart.Show

@@ -19,6 +19,7 @@ type CommandLineOption =
         TeamId : PositiveNum
         WriteMode : WriteMode
         TeamChart : TeamChartMode option
+        Total : PositiveNum option
     }
 
 let writeToSpreadsheet sheetName outputParams = 
@@ -88,6 +89,11 @@ let rec parseCommandLine argv optionsSoFar =
         let options = {optionsSoFar with TeamChart = topN |> int |> Show |> Some }
         parseCommandLine tail options
 
+    | "-total" :: games :: tail -> 
+        
+        let options = {optionsSoFar with Total = games |> int |> PositiveNum.ofInt |> Some}
+        parseCommandLine tail options
+
     | x::xs -> failwithf "Option '%s' is unrecognized" x
 
 
@@ -102,14 +108,15 @@ let main argv =
                 TeamId = Config.GetSample().SixtySeconds.TeamId |> PositiveNum.ofInt
                 WriteMode = ReadOnly
                 TeamChart = None
+                Total = None
             }
         parseCommandLine argsList defaultOptions
 
-    match options.SheetId with 
-    | None -> failwithf "Missing key -read"
-    | Some sheetInput ->
-        let sixtySeconds = Config.GetSample().SixtySeconds
+    let sixtySeconds = Config.GetSample().SixtySeconds
 
+    match options.SheetId with 
+    | Some sheetInput ->
+        
         let teams, gameDay = 
             
             sixtySeconds.PubHtml
@@ -132,17 +139,39 @@ let main argv =
                 | Show topN -> 
                 
                     let teams = 
-                        GameDay.getTopNTeams gameDay topN
-                        |> Seq.rev
-                        |> Seq.append [team]
+                        
+                        [team]
+                        |> Seq.append (GameDay.getTopNTeams gameDay topN)
                         |> Seq.distinct
-                    
+                        
 
                     [Places; RightAnswers]
                     |> Seq.iter (GoogleChart.showGraphic gameDay teams)
             | None -> ()
-        | None -> ()
+        | None -> failwith "Team with Id %d not found" <| PositiveNum.value options.TeamId 
+    | None -> ()
+    
+    
+    let showTotalTable topN = 
         
+        let data = 
+            sixtySeconds.PubHtml
+            |> Parser.parseTotal
 
-        printfn "%A"  myTeam
+        let topNResultTable = 
+            data
+            |> SeasonTable.topNResult topN
+
+        let labels = 
+            [
+                "Team"; 
+                (sprintf "Best %d games" <| PositiveNum.value topN); 
+                (sprintf "All %d games" <| PositiveNum.value data.GamesCount); 
+            ]
+
+        GoogleChart.showTable [topNResultTable; data.Table] labels
+
+    options.Total
+    |> Option.iter (fun topN -> showTotalTable topN)
+        
     0 // return an integer exit code
