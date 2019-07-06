@@ -6,12 +6,11 @@
   <ItemGroup>
     <Content Include="app-config.xml" />
     <Compile Include="Config.fs" />
+    <Compile Include="GoogleChartService.fs" />
+    <Compile Include="SpreadsheetService.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Domain.fs" />
     <Compile Include="Parser.fs" />
-    <Compile Include="OutputParams.fs" />
-    <Compile Include="SpreadsheetService.fs" />
-    <Compile Include="GoogleChartService.fs" />
     <Compile Include="Program.fs" />
     <Content Include="Google.DataTable.Net.Wrapper.XML" />
     <None Include="credentials.json">

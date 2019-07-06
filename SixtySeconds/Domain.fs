@@ -55,7 +55,7 @@ module GameDay =
             QuestionsCount = answers |> Map.count |> PositiveNum.ofInt
         }
         
-    let getTeams gameDay = 
+    let teams gameDay = 
         gameDay.Answers
         |> Map.toSeq
         |> Seq.map fst
@@ -92,7 +92,7 @@ module GameDay =
 
         let leaderAnsweredOn = 
             gameDay
-            |> getTeams
+            |> teams
             |> Seq.map (fun t -> totalAnswered gameDay t questionNumber)
             |> Seq.max
         
@@ -116,7 +116,7 @@ module GameDay =
 
         let placeUp, placeDown = 
             gameDay
-            |> getTeams
+            |> teams
             |> Seq.fold processTeam (PositiveNum.numOne, PositiveNum.numOne)
             
         {
@@ -127,7 +127,7 @@ module GameDay =
     /// Number of teams that correctly answered on question 
     let rightAnswersOnQuestion gameDay question = 
         gameDay
-        |> getTeams
+        |> teams
         |> Seq.map (fun t -> getAnswer gameDay t question)
         |> Seq.sumBy (function Right -> 1 | _ -> 0)
 
@@ -135,7 +135,7 @@ module GameDay =
     let getTopNTeams gameDay n = 
         
         gameDay
-        |> getTeams
+        |> teams
         |> Seq.groupBy (fun t -> totalAnswered gameDay t gameDay.QuestionsCount)
         |> Seq.sortByDescending fst
         |> Seq.fold (fun res group -> 
@@ -151,7 +151,7 @@ module GameDay =
     let getDifficultQuestions gameDay = 
         
         let threshold = 
-            let teamsCount = gameDay |> getTeams |> Seq.length
+            let teamsCount = gameDay |> teams |> Seq.length
             teamsCount / 3
 
         let isDifficult question = 
@@ -175,7 +175,7 @@ module GameDay =
             |> Seq.sumBy (function Right -> 1 | _ -> 0)
 
         gameDay
-        |> getTeams
+        |> teams
         |> Seq.map (fun t -> t, answeredOnDifficultQuestions t)
         |> Seq.sortByDescending (fun (_, a) -> a)
 

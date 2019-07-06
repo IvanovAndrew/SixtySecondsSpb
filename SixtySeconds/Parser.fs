@@ -210,7 +210,7 @@ let parse sheetName url =
     let questionsCount = map |> Map.find (teams |> Seq.head) |> Answers.count
     let gameDay = {Day = gameDate; Answers = map; QuestionsCount = questionsCount}
 
-    teams, gameDay
+    gameDay
 
 let parseTotal url = 
     
