@@ -28,28 +28,32 @@ type Row =
         Question : string option
     }
 
-let getService mode = 
+let AsyncGetService mode = 
     
-    let scopes = 
-        match mode with
-        | ReadOnly -> [| SheetsService.Scope.SpreadsheetsReadonly |]
-        | ReadWrite -> [| SheetsService.Scope.Spreadsheets |]
+    async {
+        let scopes = 
+            match mode with
+            | ReadOnly -> [| SheetsService.Scope.SpreadsheetsReadonly |]
+            | ReadWrite -> [| SheetsService.Scope.Spreadsheets |]
 
-    let applicationName = "Google Sheets API .NET Quickstart"
-    let credPath = Path.Combine(Environment.CurrentDirectory, 
-                                "../.credentials/sheets.googleapis.com-dotnet-quickstart.json")
-    use stream = new FileStream("credentials.json", FileMode.Open, FileAccess.Read)
-    let credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
-                        GoogleClientSecrets.Load(stream).Secrets,
-                        scopes,
-                        "user",
-                        CancellationToken.None,
-                        new FileDataStore(credPath, true)).Result
+        let applicationName = "Sixty seconds info"
+        let credPath = Path.Combine(Environment.CurrentDirectory, 
+                                    "../.credentials/sheets.googleapis.com-dotnet-quickstart.json")
+        use stream = new FileStream("credentials.json", FileMode.Open, FileAccess.Read)
+        let! credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
+                            GoogleClientSecrets.Load(stream).Secrets,
+                            scopes,
+                            "user",
+                            CancellationToken.None,
+                            new FileDataStore(credPath, true))
+                            |> Async.AwaitTask 
 
-    let baseService = new BaseClientService.Initializer()
-    baseService.ApplicationName <- applicationName
-    baseService.HttpClientInitializer <- credential
-    new SheetsService(baseService)
+        let baseService = new BaseClientService.Initializer()
+        baseService.ApplicationName <- applicationName
+        baseService.HttpClientInitializer <- credential
+        return new SheetsService(baseService)
+    }
+    
 
 let createValueRange range majorDimension values = 
         
@@ -64,42 +68,54 @@ let createValueRange range majorDimension values =
     valueRange
 
 
-let readRequest (service : SheetsService) spreadSheetID range = 
+let AsyncReadRequest (service : SheetsService) spreadSheetID range = 
     
-    let toRange input = 
+    async {
+        let toRange input = 
         
-        let list = input |> List.ofSeq
+            let list = input |> List.ofSeq
         
-        match list with 
-        | first :: second :: [] -> 
-            {
-                Number = first |> string |> int
-                Question = second |> string |> Some
-            }
-        | first :: [] -> 
-            {
-                Number = first |> string |> int
-                Question = None
-            }
-        | _ -> failwith "Что-то пошло не так"
+            match list with 
+            | first :: second :: [] -> 
+                {
+                    Number = first |> string |> int
+                    Question = second |> string |> Some
+                }
+            | first :: [] -> 
+                {
+                    Number = first |> string |> int
+                    Question = None
+                }
+            | _ -> failwith "Что-то пошло не так"
 
-    let getRequest = service.Spreadsheets.Values.Get(spreadSheetID, range)
-    getRequest.Execute().Values
-    |> Seq.map toRange
+        let request = service.Spreadsheets.Values.Get(spreadSheetID, range)
+        
+        let! executionResult = request.ExecuteAsync() |> Async.AwaitTask
+
+        let result = 
+            executionResult.Values
+            |> Seq.map toRange
+        return result
+    }
 
 
-let updateRequest (service : SheetsService) spreadsheetID valueRange = 
+let AsyncUpdateRequest (service : SheetsService) spreadsheetID valueRange = 
 
-    let updateRequest = 
-        let request = service.Spreadsheets.Values.Update(valueRange, spreadsheetID, valueRange.Range)
-        request.ValueInputOption <- 
-            SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED 
-            |> Some 
-            |> Option.toNullable
-        request
+    async {
+        let updateRequest = 
+            let request = service.Spreadsheets.Values.Update(valueRange, spreadsheetID, valueRange.Range)
+            request.ValueInputOption <- 
+                SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED 
+                |> Some 
+                |> Option.toNullable
+            request
 
-    let updateResponse = updateRequest.Execute()
+        let! updateResponse = updateRequest.ExecuteAsync() |> Async.AwaitTask
 
-    match updateResponse.UpdatedRows |> Option.ofNullable with
-    | Some value when value > 0 -> SUCCESS
-    | _ -> ERROR "No one rows are updated"
+        let result = 
+            match updateResponse.UpdatedRows |> Option.ofNullable with
+            | Some value when value > 0 -> SUCCESS
+            | _ -> ERROR "No one rows are updated"
+        
+        return result
+    }

@@ -3,6 +3,7 @@ open Domain
 open Utils
 open SpreadsheetService
 open GoogleChartService
+open PositiveNum
 
 
 type WriteMode = 
@@ -24,7 +25,9 @@ type CommandLineOption =
 let writeToSpreadsheet sheetName outputParams = 
     
     let google = Config.GetSample().Google
-    let service = SpreadsheetService.getService ServiceMode.ReadWrite
+    let service = 
+        SpreadsheetService.AsyncGetService ServiceMode.ReadWrite 
+        |> Async.RunSynchronously
     let firstRow = google.SheetRows.FirstQuestion
 
     let teamAnswers, rightAnsweredOn, places, distance = outputParams
@@ -37,19 +40,25 @@ let writeToSpreadsheet sheetName outputParams =
         SpreadsheetService.createValueRange range MajorDimension.Column values
 
     let update range = 
-        match SpreadsheetService.updateRequest service google.SpreadsheetId range with 
+        
+        let result = 
+            range 
+            |> SpreadsheetService.AsyncUpdateRequest service google.SpreadsheetId 
+            |> Async.RunSynchronously
+
+        match result with 
         | SUCCESS -> printfn "Written in %A" range.Range
         | ERROR x -> printfn "Error: %s" x
 
     [
         // пишем, ответили ли мы
-        (google.SheetColumns.TeamAnswered, teamAnswers |> List.map (function Right ->  "'+" | _ -> ""))
+        (google.SheetColumns.TeamAnswered, teamAnswers |> Seq.map (function Right ->  "'+" | _ -> "") |> Array.ofSeq)
         // пишем число ответивших на вопрос
-        (google.SheetColumns.Answered, rightAnsweredOn |> List.map string)
+        (google.SheetColumns.Answered, rightAnsweredOn |> Seq.map string |> Array.ofSeq)
         // пишем место
-        (google.SheetColumns.Place, places |> List.map (fun p -> sprintf "%d-%d" <| PositiveNum.value p.From <| PositiveNum.value p.To))
+        (google.SheetColumns.Place, places |> Seq.map (fun p -> sprintf "%d-%d" <| PositiveNum.value p.From <| PositiveNum.value p.To) |> Array.ofSeq)
         // пишем отставание
-        (google.SheetColumns.Distance, distance |> List.map string)
+        (google.SheetColumns.Distance, distance |> Seq.map string |> Array.ofSeq)
     ]
     |> List.map (fun t -> createValueRange <| fst t <| snd t)
     |> List.iter update
@@ -79,8 +88,8 @@ let showPlacesQuestionByQuestion gameDay teams =
         let places team = 
             gameDay.QuestionsCount 
             |> PositiveNum.createNaturalRange
-            |> List.map (GameDay.getPlaceAfterQuestion gameDay team)
-            |> List.map (fun p -> p.From |> PositiveNum.value)
+            |> Seq.map (GameDay.getPlaceAfterQuestion gameDay team)
+            |> Seq.map (fun p -> p.From |> PositiveNum.value)
 
         teams 
         |> Seq.map places
@@ -97,7 +106,7 @@ let showPointsQuestionByQuestion gameDay teams =
         let answers team = 
             gameDay.QuestionsCount
             |> PositiveNum.createNaturalRange 
-            |> Seq.map (fun q -> GameDay.totalAnswered gameDay team q)
+            |> Seq.map (fun q -> GameDay.totalAnswered gameDay q team)
 
         teams 
         |> Seq.map answers
@@ -149,19 +158,19 @@ let processGameDay options gameDay =
 
             let teamAnswered = 
                 allQuestions
-                |> List.map (GameDay.getAnswer gameDay team)
+                |> Seq.map (GameDay.getAnswer gameDay team)
 
             let rightAnsweredOn = 
                 allQuestions
-                |> List.map (GameDay.rightAnswersOnQuestion gameDay)
+                |> Seq.map (GameDay.rightAnswersOnQuestion gameDay)
 
             let places = 
                 allQuestions
-                |> List.map (GameDay.getPlaceAfterQuestion gameDay team)
+                |> Seq.map (GameDay.getPlaceAfterQuestion gameDay team)
 
             let distance = 
                 allQuestions 
-                |> List.map (GameDay.getDistanceFromFirstPlace gameDay team)
+                |> Seq.map (GameDay.getDistanceFromTheFirstPlace gameDay team)
 
             teamAnswered, rightAnsweredOn, places, distance
                 
@@ -177,7 +186,7 @@ let processGameDay options gameDay =
                 
                 let teams = 
                     [team]
-                    |> Seq.append (GameDay.getTopNTeams gameDay topN)
+                    |> Seq.append (GameDay.leadingTeams gameDay topN)
                     |> Seq.distinct
 
                 showPlacesQuestionByQuestion gameDay teams
@@ -239,10 +248,10 @@ let main argv =
 
     options.SheetId 
     |> Option.map (fun sheetInput -> sixtySeconds.PubHtml |> Parser.parse sheetInput)
-    |> Option.iter (fun gameDay -> processGameDay options gameDay)
+    |> Option.iter (processGameDay options)
     
 
     options.Total
-    |> Option.iter (fun topN -> showTotalTable sixtySeconds.PubHtml topN)
+    |> Option.iter (showTotalTable sixtySeconds.PubHtml)
         
     0 // return an integer exit code
