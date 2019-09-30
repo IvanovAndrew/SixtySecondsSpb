@@ -53,7 +53,7 @@ let private getSheetId (document : HtmlDocument) sheetName =
 
     let nodeOption = 
         childs
-        |> Seq.filter (HtmlNode.innerText >> StringUtils.containsString sheetName)
+        |> Seq.filter (HtmlNode.innerText >> StringUtils.containsSubstring sheetName)
         |> Seq.tryHead
         
             
@@ -129,7 +129,7 @@ let parse sheetName url =
             |> HtmlNode.firstElement
             |> HtmlNode.elements
 
-        let isInt s = 
+        let isInt (s : string) = 
             match Int32.TryParse(s) with 
             | (true, v) -> true
             | _ -> false
@@ -147,7 +147,7 @@ let parse sheetName url =
             AnswersColumns = answerColumns
         }
 
-    let parseGameDay() = 
+    let parseGameDay gameDay = 
         
         let parse node = 
             
@@ -188,28 +188,28 @@ let parse sheetName url =
             |> Seq.rev
             |> Seq.tail
             |> Seq.rev
-
-        sheetNode
-        |> HtmlNode.elements
-        |> Seq.tail
-        |> Seq.filter filterBySheetId
-        |> exceptLast
+        
+        let teamsLines = 
+            sheetNode
+            |> HtmlNode.elements
+            |> Seq.tail
+            |> Seq.filter filterBySheetId
+            |> exceptLast
+        
+        teamsLines
         |> Seq.map parse
-        |> Map.ofSeq
+        |> Seq.fold (fun g (team, answers) -> GameDay.withTeam team answers g) gameDay
     
-    let gameDate = 
-        let m = Regex.Match(sheetName, "(\d{1,2})\.(\d{1,2})")
-        let day = m.Groups.[1].Value |> int
-        let month = m.Groups.[2].Value |> int
+    let gameDay =
+        
+        let gameDate = 
+            let m = Regex.Match(sheetName, "(\d{1,2})\.(\d{1,2})")
+            let day = m.Groups.[1].Value |> int
+            let month = m.Groups.[2].Value |> int
 
-        new DateTime(year, month, day)
-
-    let map = parseGameDay()
-
-    let teams = map |> Map.toSeq |> Seq.map fst
-    let questionsCount = map |> Map.find (teams |> Seq.head) |> Answers.count
-    let gameDay = {Day = gameDate; Answers = map; QuestionsCount = questionsCount}
-
+            new DateTime(year, month, day)
+        
+        parseGameDay {Day = gameDate; Answers = Map.empty; QuestionsCount = PositiveNum.ofInt 36}
     gameDay
 
 let parseTotal url = 

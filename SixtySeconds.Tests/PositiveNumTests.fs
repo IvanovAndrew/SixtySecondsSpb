@@ -1,104 +1,189 @@
-﻿namespace PositiveNum.Tests
+﻿module PositiveNum.PropertyBasedTests
 
+open Utils
+
+open FsCheck
+open TestUtils.FsCheckUtils
+open TestUtils
+
+open System
 open NUnit.Framework
+open FsCheck.NUnit
 
-[<TestFixture>]
-module PositiveNumTests = 
+
+let createRange x y z =
+    let first, step, last =
+        x |> PositiveNum.ofInt,
+        y |> PositiveNum.ofInt,
+        z |> PositiveNum.ofInt
+    
+    PositiveNum.createRange first step last
+    
+
+[<Property(QuietOnSuccess = true)>]    
+let ``Positive num can't be created from negative number or zero`` x =
+    
+    let positiveNumOfNegativeNumber x =
         
-    open Utils
-    open System
-
-    [<Test>]
-    let ``Positive num. Create of negative number. Should failed``() =
+        try 
+            let positiveNum = x |> PositiveNum.ofInt
+            false
+        with
+            | :? ArgumentException as ex->
+                StringUtils.containsSubstring "must be positive" ex.Message
+            | _ -> false
+    
+    x <= 0 ==> lazy(positiveNumOfNegativeNumber x)
+    
+[<Property(QuietOnSuccess = true)>]
+let ``Positive num are created from positive integers`` x =
         
-        try
-            -1 |> PositiveNum.ofInt |> ignore
-            NUnitAssert.Fail()
-        with 
-            | :? ArgumentException -> Assert.Pass()
-            | _ -> NUnitAssert.Fail()
-
-    [<Test>]
-    let ``Positive num. Create of zero. Should failed``() = 
-
-        try
-            0 |> PositiveNum.ofInt |> ignore
-            NUnitAssert.Fail()
-        with 
-            | :? ArgumentException -> Assert.Pass()
-            | _ -> NUnitAssert.Fail()
-
-    [<Test>]
-    let ``Positive num. Create of positive num. Should OK``() = 
+    let positiveNumOfPositiveNumber input =
         
-        let one = 1 |> PositiveNum.ofInt
-        NUnitAssert.Pass()
+        try 
+            let positiveNum = input |> PositiveNum.ofInt
+            true
+        with
+            | _ -> false
+    
+    x > 0 ==> lazy(positiveNumOfPositiveNumber x)
 
-    // TODO Add FsCheck here
-    [<Test>]
-    let ``Create natural range. First item is 1``() = 
+[<Property(QuietOnSuccess = true)>]        
+let ``value (ofInt (num)) = num`` number =
+    
+    let reversableOperations x =
+        x
+        |> PositiveNum.ofInt
+        |> PositiveNum.value
+        |> (=) x
+    
+    (number > 0) ==> lazy(reversableOperations number)
 
-        let range = 
-            42
-            |> PositiveNum.ofInt
+[<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
+let ``Next positive num is greater`` current =
+    
+    let nextPositiveNum = current |> PositiveNum.next
+    
+    let current, next =
+        current |> PositiveNum.value,
+        nextPositiveNum |> PositiveNum.value
+    
+    current < next
+    
+[<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
+let ``Previous positive num is less`` positiveNum =
+    
+    let previousNumberIsLess current = 
+        let previousPositiveNum = current |> PositiveNum.previous
+        
+        let previousValue, currentValue =
+            
+            previousPositiveNum |> PositiveNum.value,
+            current |> PositiveNum.value
+        previousValue < currentValue
+    
+    positiveNum <> PositiveNum.numOne ==> lazy(previousNumberIsLess positiveNum)
+    
+[<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
+let ``Previous (Next (number)) = number`` positiveNum =
+    
+    positiveNum
+    |> PositiveNum.next
+    |> PositiveNum.previous
+    |> ((=) positiveNum)
+
+[<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
+let ``Next (Previous (number)) = number`` positiveNum =
+    
+    let reversableProperty x = 
+        x
+        |> PositiveNum.previous
+        |> PositiveNum.next
+        |> ((=) x)
+        
+    (positiveNum <> PositiveNum.numOne) ==> lazy(reversableProperty positiveNum) 
+
+[<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
+let ``Next (Previous (number)) = Previous(Next(number))`` positiveNum =
+    
+    let reversableProperty x = 
+        
+        let previousThenNext =
+            x
+            |> PositiveNum.previous
+            |> PositiveNum.next
+        
+        let nextThenPrevious =
+            x
+            |> PositiveNum.next
+            |> PositiveNum.previous
+            
+        previousThenNext = nextThenPrevious
+        
+    (positiveNum <> PositiveNum.numOne) ==> lazy(reversableProperty positiveNum)
+    
+
+[<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
+let ``First item of natural range is 1`` naturalRangeLength =
+    
+    let firstItem = naturalRangeLength |> PositiveNum.createNaturalRange |> Seq.head
+    
+    firstItem = PositiveNum.numOne
+    
+
+[<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]
+let ``Natural range is sorted collection`` naturalRangeLength =
+    
+    let range = PositiveNum.createNaturalRange naturalRangeLength
+    
+    let sortedRange = range |> List.sortBy PositiveNum.value
+    range = sortedRange
+        
+
+[<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]
+let ``Length of natural range is equal to last value``x =
+    
+    let lastValueOfNaturalRangeIsEqualToLength num =
+            
+        let rangeLength =
+            num
             |> PositiveNum.createNaturalRange
-
-        let head = range |> List.head
-
-        let expected = 1 |> PositiveNum.ofInt
-
-        NUnitAssert.areEqual expected head
-
-    // TODO Add FsCheck here
-    [<Test>]
-    let ``Create natural range. Length of range is equal to last value``() = 
+            |> Seq.length
         
-        let rangeLength = 
-            42
-            |> PositiveNum.ofInt
-            |> PositiveNum.createNaturalRange
-            |> List.length
-
-        NUnitAssert.areEqual 42 rangeLength
-
-    // TODO Add FsCheck here
-    [<Test>]
-    let ``Create range. First value is firstParam``() = 
+        rangeLength = PositiveNum.value num
+    
+    lastValueOfNaturalRangeIsEqualToLength x
+    
+[<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]
+let ``Last value of range is maximum value`` x y z =
+    
+    let precondition =
+        let xValue, zValue = x |> PositiveNum.value, z |> PositiveNum.value
+        xValue <= zValue
+    
+    let maximumValueIsLastItem first step last =
         
-        let first, step, last = 
-            3 |> PositiveNum.ofInt, 5 |> PositiveNum.ofInt, 42 |> PositiveNum.ofInt
-
-        let firstElement = 
-            last
-            |> PositiveNum.createRange first step
-            |> List.head
-
-        NUnitAssert.areEqual first firstElement
-
-    // TODO Add FsCheck here
-    [<Test>]
-    let ``Create range. All values are not greater than last param``() = 
+        let range = PositiveNum.createRange first step last
         
-        let first, step, last = 
-            2 |> PositiveNum.ofInt, 5 |> PositiveNum.ofInt, 42 |> PositiveNum.ofInt
-
-        let range = 
-            last
-            |> PositiveNum.createRange first step
-
-        NUnitAssert.trueForAll range (fun x -> x <= last)
-
-    // TODO Add FsCheck here
-    [<Test>]
-    let ``Create range. Returns sorted list``() = 
+        let lastItem = range |> List.last
         
-        let first, step, last = 
-            2 |> PositiveNum.ofInt, 5 |> PositiveNum.ofInt, 42 |> PositiveNum.ofInt
+        let maxValue = range |> List.max
+        
+        maxValue = lastItem
+    
+    precondition ==> lazy(maximumValueIsLastItem x y z)
 
-        let range = 
-            last
-            |> PositiveNum.createRange first step
-
-        let sorted = range |> List.sort
-
-        NUnitAssert.areEqual sorted range
+[<Property(QuietOnSuccess = true)>]
+let ``All range items are unique`` x y z =
+    
+    let precondition = (x > 0 && y > 0 && z > 0) 
+    
+    let allItemsAreUnique x y z =
+        
+        let range = createRange x y z
+        let uniqueRange = range |> Seq.distinct
+        
+        Seq.length range = Seq.length uniqueRange 
+        
+    
+    precondition ==> lazy (allItemsAreUnique x y z)

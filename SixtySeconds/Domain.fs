@@ -1,7 +1,9 @@
 ﻿module Domain
 
-open Utils
 open System
+open System
+open Utils
+open PositiveNum
 
 type Team = 
     {
@@ -19,22 +21,28 @@ type Answer =
     | Right 
     | Wrong
 
-module Answer = 
-        
-    let ofBool isRight = if isRight then Right else Wrong
-        
-type Answers = private Answers of Answer array
+module Answer =
     
+    let ofBool isRight = if isRight then Right else Wrong
+    let isRight answer = answer = Answer.Right
+    
+type Answers = private Answers of Answer array    
 module Answers = 
-        
+    
     let ofArray arr = Answers arr
+    let ofBoolArray arr = arr |> Array.map Answer.ofBool |> ofArray
     let ofSeq seq = seq |> Array.ofSeq |> ofArray
+    let toBoolArray (Answers a) = a 
         
     let getAnswer questionNumber (Answers a) = 
+        
         let index = 
             questionNumber
             |> PositiveNum.value 
             |> ((+) -1)
+        
+        if index >= Array.length a then invalidArg "questionNumber" "There are only %A questions on the game" <| Array.length a    
+        
         a.[index]
 
     let count (Answers a) = a |> Array.length |> PositiveNum.ofInt
@@ -48,12 +56,25 @@ type GameDay =
 
 module GameDay = 
         
-    let ofMap day answers = 
-        {
-            Day = day; 
-            Answers = answers; 
-            QuestionsCount = answers |> Map.count |> PositiveNum.ofInt
-        }
+    let withTeam team answers gameDay =
+        
+        let questionsCountCorrect a =
+            let answersCount = answers |> Answers.count
+            
+            answersCount = gameDay.QuestionsCount
+        
+        let teamIsAdded g t =             
+            g.Answers
+            |> Map.containsKey t 
+            
+         
+        if not <| questionsCountCorrect gameDay.Answers then invalidArg "answers" "Questions count mismatching"
+        if teamIsAdded gameDay team then invalidArg "team" <| sprintf "Team %A is already added" team
+        
+        let newAnswers = gameDay.Answers |> Map.add team answers
+        
+        {gameDay with Answers = newAnswers}
+        
         
     let teams gameDay = 
         gameDay.Answers
@@ -68,46 +89,42 @@ module GameDay =
         |> Answers.getAnswer questionNumber
 
     /// How many correct answers did the team give as of question Q
-    let totalAnswered gameDay team questionNumber = 
+    let totalAnswered gameDay questionNumber team  = 
         
         let getAnswer' = getAnswer gameDay team
-
-        let rec getTotalAnswered acc question = 
-            
-            let newAcc = 
-                match getAnswer' question with 
-                | Right -> acc + 1
-                | Wrong -> acc
-
-            if question = PositiveNum.numOne then newAcc
-            else 
-                getTotalAnswered newAcc <| PositiveNum.previous question
+        let isRightAnswer = ((=) Answer.Right)
         
-        getTotalAnswered 0 questionNumber
+        questionNumber
+        |> PositiveNum.createNaturalRange 
+        |> Seq.filter (getAnswer' >> isRightAnswer)
+        |> Seq.length
 
     /// Отставание команды A от лидера по состоянию на вопрос Q
-    let getDistanceFromFirstPlace gameDay myTeam questionNumber = 
+    let getDistanceFromTheFirstPlace gameDay team questionNumber = 
             
-        let teamAnsweredOn = totalAnswered gameDay myTeam questionNumber
+        let totalAnswered' = totalAnswered gameDay questionNumber
+        let teamAnsweredOn = totalAnswered' team 
 
         let leaderAnsweredOn = 
             gameDay
             |> teams
-            |> Seq.map (fun t -> totalAnswered gameDay t questionNumber)
+            |> Seq.map totalAnswered'
             |> Seq.max
         
         teamAnsweredOn - leaderAnsweredOn
 
-    /// Team A is behind the leader as of question Q
-    let getPlaceAfterQuestion gameDay myTeam questionNumber = 
-            
-        let threshold = totalAnswered gameDay myTeam questionNumber
+    
+    /// Team position after question Q
+    let getPlaceAfterQuestion gameDay team questionNumber = 
+        
+        let totalAnswered' = totalAnswered gameDay questionNumber 
+        let threshold = totalAnswered' team 
 
-        let processTeam (placeUp, placeDown) team = 
+        let processTeam (placeUp, placeDown) otherTeam = 
             
-            if team = myTeam then placeUp, placeDown
+            if otherTeam = team then placeUp, placeDown
             else 
-                let answered = totalAnswered gameDay team questionNumber
+                let answered = totalAnswered' otherTeam
                 
                 if answered > threshold then placeUp |> PositiveNum.next, placeDown |> PositiveNum.next
                 elif answered = threshold then placeUp, placeDown |> PositiveNum.next
@@ -123,6 +140,9 @@ module GameDay =
             From = placeUp
             To = placeDown
         }
+        
+    let getPlace gameDay team =
+        getPlaceAfterQuestion gameDay team gameDay.QuestionsCount
 
     /// Number of teams that correctly answered on question 
     let rightAnswersOnQuestion gameDay question = 
@@ -132,11 +152,11 @@ module GameDay =
         |> Seq.sumBy (function Right -> 1 | _ -> 0)
 
     
-    let getTopNTeams gameDay n = 
+    let leadingTeams gameDay n = 
         
         gameDay
         |> teams
-        |> Seq.groupBy (fun t -> totalAnswered gameDay t gameDay.QuestionsCount)
+        |> Seq.groupBy (fun t -> totalAnswered gameDay gameDay.QuestionsCount t)
         |> Seq.sortByDescending fst
         |> Seq.fold (fun res group -> 
                             if n > Seq.length res 
@@ -144,15 +164,11 @@ module GameDay =
                             else res) Seq.empty
 
     /// 
-    let getWinnerTeam gameDay = getTopNTeams gameDay 1
+    let getWinnerTeam gameDay = leadingTeams gameDay 1
 
 
     /// 
-    let getDifficultQuestions gameDay = 
-        
-        let threshold = 
-            let teamsCount = gameDay |> teams |> Seq.length
-            teamsCount / 3
+    let getDifficultQuestions threshold gameDay = 
 
         let isDifficult question = 
             
@@ -164,9 +180,9 @@ module GameDay =
         |> PositiveNum.createNaturalRange
         |> Seq.filter isDifficult
 
-    let getRatingOnDifficultQuestions gameDay = 
+    let getRatingOnDifficultQuestions threshold gameDay = 
         
-        let questions = getDifficultQuestions gameDay
+        let questions = getDifficultQuestions threshold gameDay
 
         let answeredOnDifficultQuestions team = 
             
@@ -191,7 +207,7 @@ module SeasonTable =
     let ofSeq data = 
         
         {
-            Table = data |> Seq.map (fun (t, r) -> t, r |> Seq.sum) |> Seq.sortByDescending snd
+            Table = data |> Seq.map (fun (team, rating) -> team, rating |> Seq.sum) |> Seq.sortByDescending snd
             Results = data |> Map.ofSeq
             GamesCount = data |> Seq.map (snd >> Seq.length) |> Seq.max |> PositiveNum.ofInt
         }

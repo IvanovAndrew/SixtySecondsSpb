@@ -1,19 +1,20 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Dll</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="NUnitAssert.fs" />
+    <Compile Include="TestUtils.fs" />
+    <Compile Include="AnswersTests.fs" />
     <Compile Include="PositiveNumTests.fs" />
     <Compile Include="GameDayTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FsCheck.Nunit" Version="2.14.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.1.1" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.13.0" />
+    <PackageReference Include="FsCheck.Nunit" Version="3.0.0-alpha4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.15.1" />
   </ItemGroup>
 
   <ItemGroup>
