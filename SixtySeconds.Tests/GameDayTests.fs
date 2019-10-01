@@ -2,6 +2,7 @@
 
 open Domain
 
+open Domain
 open System
 open NUnit.Framework
 open FsCheck
@@ -33,7 +34,7 @@ module GameDayExampleTests =
         {
             Day = DateTime.Now
             Answers = Map.empty
-            QuestionsCount = PositiveNum.ofInt questionsCount
+            PackageSize = PositiveNum.ofInt questionsCount
         }
     
     [<Test>]
@@ -145,7 +146,7 @@ module GameDayPropertiesTests =
         let customTeam =  gameDay |> GameDay.teams |> createNewTeam 
         
         let gameDay' =
-            let packageSize = gameDay.QuestionsCount
+            let packageSize = gameDay.PackageSize
             
             let answers = allRightAnswers <| PositiveNum.value packageSize
             
@@ -161,7 +162,7 @@ module GameDayPropertiesTests =
         let customTeam = gameDay |> GameDay.teams |> createNewTeam
         
         let gameDay' =
-            let packageSize = gameDay.QuestionsCount
+            let packageSize = gameDay.PackageSize
             
             let answers = allWrongAnswers <| PositiveNum.value packageSize
             
@@ -179,8 +180,8 @@ module GameDayPropertiesTests =
         
         let leader = GameDay.leadingTeams gameDay 1 |> Seq.head
         
-        let distance = GameDay.getDistanceFromTheFirstPlace gameDay leader gameDay.QuestionsCount
-        distance = 0
+        let distance = GameDay.getDistanceFromTheFirstPlace gameDay leader gameDay.PackageSize
+        distance = 0<RightAnswer>
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
     let ``GameDay property. Teams must be unique in the game day`` gameDay =
@@ -210,7 +211,7 @@ module GameDayPropertiesTests =
                 {
                     Day = DateTime.Now;
                     Answers = Map.empty;
-                    QuestionsCount = PositiveNum.ofInt questionsCount
+                    PackageSize = PositiveNum.ofInt questionsCount
                 }
                 
             let customTeam = {ID = PositiveNum.numOne; Name = NoEmptyString.ofString "Test team"}
@@ -238,28 +239,28 @@ module GameDayPropertiesTests =
         
         let gameDayWithLoserTeam =
             
-            let answers = allWrongAnswers <| PositiveNum.value gameDay.QuestionsCount
+            let answers = allWrongAnswers <| PositiveNum.value gameDay.PackageSize
             
             gameDay
             |> GameDay.withTeam loserTeam answers
         
-        let totalAnswered = GameDay.totalAnswered gameDayWithLoserTeam gameDayWithLoserTeam.QuestionsCount loserTeam
+        let totalAnswered = GameDay.totalAnswered gameDayWithLoserTeam gameDayWithLoserTeam.PackageSize loserTeam
         
-        totalAnswered = 0
+        totalAnswered = 0<RightAnswer>
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
     let ``All team answers are right. Total answered questions is equal to questions count`` gameDay =
         
         let customTeam = gameDay |> GameDay.teams |> createNewTeam
-        let answers = allRightAnswers (PositiveNum.value gameDay.QuestionsCount) 
+        let answers = allRightAnswers (PositiveNum.value gameDay.PackageSize) 
         
         let gameDayWithCustomTeam = 
             gameDay
             |> GameDay.withTeam customTeam answers
         
-        let totalAnswered = GameDay.totalAnswered gameDayWithCustomTeam gameDay.QuestionsCount customTeam
+        let totalAnswered = GameDay.totalAnswered gameDayWithCustomTeam gameDay.PackageSize customTeam
         
-        gameDayWithCustomTeam.QuestionsCount = PositiveNum.ofInt totalAnswered
+        PositiveNum.value gameDayWithCustomTeam.PackageSize = int totalAnswered
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
     let ``GameDay property. Places don't intersect`` gameDay =

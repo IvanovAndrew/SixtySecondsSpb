@@ -90,6 +90,6 @@ module FsCheckUtils =
                             (team5, answers5);
                         ]
                         |> List.fold (fun map (team, answers) -> map |> Map.add team answers) Map.empty
-                    QuestionsCount = PositiveNum.ofInt 12
+                    PackageSize = PositiveNum.ofInt 12
                 }
             } |> Arb.fromGen

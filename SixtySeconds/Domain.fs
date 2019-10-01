@@ -1,7 +1,6 @@
 ﻿module Domain
 
 open System
-open System
 open Utils
 open PositiveNum
 
@@ -20,11 +19,24 @@ type Place =
 type Answer = 
     | Right 
     | Wrong
+    
+[<Measure>]
+type RightAnswer
+
+[<Measure>]
+type Point
+
+module Converter =
+    
+    let rightAnswerFromInt num = num * 1<RightAnswer>
+    let pointFromDecimal num = num * 1m<Point>
+    let toInt (num : int<_>) = int num
 
 module Answer =
     
     let ofBool isRight = if isRight then Right else Wrong
     let isRight answer = answer = Answer.Right
+    let toRightAnswer answer = if isRight answer then 1<RightAnswer> else 0<RightAnswer> 
     
 type Answers = private Answers of Answer array    
 module Answers = 
@@ -32,7 +44,6 @@ module Answers =
     let ofArray arr = Answers arr
     let ofBoolArray arr = arr |> Array.map Answer.ofBool |> ofArray
     let ofSeq seq = seq |> Array.ofSeq |> ofArray
-    let toBoolArray (Answers a) = a 
         
     let getAnswer questionNumber (Answers a) = 
         
@@ -51,7 +62,7 @@ type GameDay =
     {
         Day : DateTime
         Answers : Map<Team, Answers>
-        QuestionsCount : PositiveNum
+        PackageSize : PositiveNum
     }
 
 module GameDay = 
@@ -61,7 +72,7 @@ module GameDay =
         let questionsCountCorrect a =
             let answersCount = answers |> Answers.count
             
-            answersCount = gameDay.QuestionsCount
+            answersCount = gameDay.PackageSize
         
         let teamIsAdded g t =             
             g.Answers
@@ -92,12 +103,11 @@ module GameDay =
     let totalAnswered gameDay questionNumber team  = 
         
         let getAnswer' = getAnswer gameDay team
-        let isRightAnswer = ((=) Answer.Right)
         
         questionNumber
         |> PositiveNum.createNaturalRange 
-        |> Seq.filter (getAnswer' >> isRightAnswer)
-        |> Seq.length
+        |> Seq.map getAnswer'
+        |> Seq.sumBy Answer.toRightAnswer
 
     /// Отставание команды A от лидера по состоянию на вопрос Q
     let getDistanceFromTheFirstPlace gameDay team questionNumber = 
@@ -142,21 +152,21 @@ module GameDay =
         }
         
     let getPlace gameDay team =
-        getPlaceAfterQuestion gameDay team gameDay.QuestionsCount
+        getPlaceAfterQuestion gameDay team gameDay.PackageSize
 
     /// Number of teams that correctly answered on question 
     let rightAnswersOnQuestion gameDay question = 
         gameDay
         |> teams
         |> Seq.map (fun t -> getAnswer gameDay t question)
-        |> Seq.sumBy (function Right -> 1 | _ -> 0)
+        |> Seq.sumBy Answer.toRightAnswer
 
     
     let leadingTeams gameDay n = 
         
         gameDay
         |> teams
-        |> Seq.groupBy (fun t -> totalAnswered gameDay gameDay.QuestionsCount t)
+        |> Seq.groupBy (fun t -> totalAnswered gameDay gameDay.PackageSize t)
         |> Seq.sortByDescending fst
         |> Seq.fold (fun res group -> 
                             if n > Seq.length res 
@@ -176,7 +186,7 @@ module GameDay =
             rightAnswers <= threshold
 
 
-        gameDay.QuestionsCount
+        gameDay.PackageSize
         |> PositiveNum.createNaturalRange
         |> Seq.filter isDifficult
 
@@ -188,7 +198,7 @@ module GameDay =
             
             questions
             |> Seq.map (getAnswer gameDay team)
-            |> Seq.sumBy (function Right -> 1 | _ -> 0)
+            |> Seq.sumBy Answer.toRightAnswer
 
         gameDay
         |> teams
@@ -197,8 +207,8 @@ module GameDay =
 
 type SeasonTable = 
     {
-        Results : Map<Team, decimal seq>
-        Table : (Team * decimal) seq
+        Results : Map<Team, decimal<Point> seq>
+        Table : (Team * decimal<Point>) seq
         GamesCount : PositiveNum
     }
 
@@ -215,22 +225,23 @@ module SeasonTable =
 
     let topNResult resultsToCount seasonTable = 
             
-        let gamesToCount = 
-            if resultsToCount > seasonTable.GamesCount
-            then seasonTable.GamesCount
-            else resultsToCount
+        let topResults allResults =
+            
+            let gamesToCount = 
+                if resultsToCount > seasonTable.GamesCount
+                then seasonTable.GamesCount
+                else resultsToCount
+            
+            let length = allResults |> Seq.length |> PositiveNum.ofInt
+
+            let topResults = 
+                if length < gamesToCount 
+                then allResults
+                else allResults |> Seq.sortByDescending id |> Seq.take (gamesToCount |> PositiveNum.value)
+                    
+            topResults |> Seq.sum
 
         seasonTable.Results
         |> Map.toSeq
-        |> Seq.map (fun (team, results) -> 
-                                
-                        let length = results |> Seq.length |> PositiveNum.ofInt
-
-                        let topResults = 
-                            if length < gamesToCount 
-                            then results
-                            else results |> Seq.sortByDescending id |> Seq.take (gamesToCount |> PositiveNum.value)
-                                
-                        team, topResults |> Seq.sum
-                        )
+        |> Seq.map (fun (team, results) -> team, topResults results)
         |> Seq.sortByDescending snd

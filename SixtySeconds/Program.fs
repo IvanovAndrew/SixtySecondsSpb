@@ -71,7 +71,7 @@ let showGraphic data teams gameDay vAxis =
 
     let labels = teams |> Seq.map (fun t -> t.Name |> NoEmptyString.value)
 
-    let hMax = gameDay.QuestionsCount |> PositiveNum.value
+    let hMax = gameDay.PackageSize |> PositiveNum.value
 
     let options = 
         {
@@ -86,7 +86,7 @@ let showPlacesQuestionByQuestion gameDay teams =
     
     let places = 
         let places team = 
-            gameDay.QuestionsCount 
+            gameDay.PackageSize 
             |> PositiveNum.createNaturalRange
             |> Seq.map (GameDay.getPlaceAfterQuestion gameDay team)
             |> Seq.map (fun p -> p.From |> PositiveNum.value)
@@ -104,7 +104,7 @@ let showPointsQuestionByQuestion gameDay teams =
 
     let rightAnswers = 
         let answers team = 
-            gameDay.QuestionsCount
+            gameDay.PackageSize
             |> PositiveNum.createNaturalRange 
             |> Seq.map (fun q -> GameDay.totalAnswered gameDay q team)
 
@@ -113,7 +113,7 @@ let showPointsQuestionByQuestion gameDay teams =
     
     let vMax = rightAnswers |> Seq.map (Seq.max) |> Seq.max
 
-    let verticalAxis = {Direction = Forward; Label = "Правильные ответы"; Maximum = vMax}
+    let verticalAxis = {Direction = Forward; Label = "Правильные ответы"; Maximum = Converter.toInt vMax}
 
     showGraphic rightAnswers teams gameDay verticalAxis
 
@@ -154,7 +154,7 @@ let processGameDay options gameDay =
         let outParams = 
                 
             let allQuestions = 
-                PositiveNum.createNaturalRange gameDay.QuestionsCount
+                PositiveNum.createNaturalRange gameDay.PackageSize
 
             let teamAnswered = 
                 allQuestions

@@ -5,6 +5,7 @@ open System.Text.RegularExpressions
 
 open FSharp.Data
 
+open System
 open Utils
 open Domain
 
@@ -209,7 +210,7 @@ let parse sheetName url =
 
             new DateTime(year, month, day)
         
-        parseGameDay {Day = gameDate; Answers = Map.empty; QuestionsCount = PositiveNum.ofInt 36}
+        parseGameDay {Day = gameDate; Answers = Map.empty; PackageSize = PositiveNum.ofInt 36}
     gameDay
 
 let parseTotal url = 
@@ -255,6 +256,7 @@ let parseTotal url =
             |> Seq.skip firstResult
             |> Seq.map (HtmlNode.innerText >> tryParseDecimal)
             |> Seq.choose id
+            |> Seq.map Converter.pointFromDecimal
         
         team, res
 
