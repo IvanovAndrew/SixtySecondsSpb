@@ -2,13 +2,11 @@
 
 open Domain
 
-open Domain
 open System
 open NUnit.Framework
+open FsUnit
 open FsCheck
 open FsCheck.NUnit
-open TestUtils
-open Utils
 
 [<TestFixture>]
 module GameDayExampleTests = 
@@ -48,8 +46,7 @@ module GameDayExampleTests =
         let top3Teams = GameDay.leadingTeams gameDay 3
         let top3Count = top3Teams |> Seq.length
         
-        top3Count < 3
-        |> NUnitAssert.isTrue
+        top3Count |> should lessThan 3 
 
     [<Test>]
     let ``LeadingTeams. Two teams on secondPlace. Returns 3 teams on top2``() = 
@@ -64,7 +61,7 @@ module GameDayExampleTests =
         let top2Teams = GameDay.leadingTeams gameDay 2
         let n = top2Teams |> Seq.length
         
-        NUnitAssert.areEqual n 3
+        n |> should equal 3 
 
     [<Test>]
     let ``getAnswer. Team answered right on the first question. Returns Right``() = 
@@ -76,7 +73,7 @@ module GameDayExampleTests =
         let firstQuestion = 1 |> PositiveNum.ofInt
         let answerOnFirstQuestion = GameDay.getAnswer gameDay firstTeam firstQuestion
         
-        NUnitAssert.areEqual Answer.Right answerOnFirstQuestion
+        answerOnFirstQuestion |> should equal Answer.Right 
 
     [<Test>]
     let ``getAnswer. Team answered wrong on the second question. Returns Wrong``() = 
@@ -88,7 +85,7 @@ module GameDayExampleTests =
         let secondQuestion = PositiveNum.numOne |> PositiveNum.next
         let answerOnSecondQuestion = GameDay.getAnswer gameDay firstTeam secondQuestion
         
-        NUnitAssert.areEqual Answer.Wrong answerOnSecondQuestion
+        answerOnSecondQuestion |> should equal Answer.Wrong 
 
      
         
@@ -102,12 +99,14 @@ module GameDayExampleTests =
             
                     
         let distance = GameDay.getDistanceFromTheFirstPlace gameDay secondTeam PositiveNum.numOne
-        NUnitAssert.areEqual -1 distance
+        distance |> should equal -1 
         
         
 module GameDayPropertiesTests =
     
+    open TestUtils
     open FsCheckUtils
+    open Utils
     
     let createNewTeam teams =
         

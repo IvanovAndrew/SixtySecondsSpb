@@ -52,7 +52,9 @@ module Answers =
             |> PositiveNum.value 
             |> ((+) -1)
         
-        if index >= Array.length a then invalidArg "questionNumber" "There are only %A questions on the game" <| Array.length a    
+        if index >= Array.length a then
+            let message = sprintf "There are only %d questions on the game" <| Array.length a
+            invalidArg "questionNumber" message
         
         a.[index]
 
