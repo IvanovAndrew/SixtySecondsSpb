@@ -140,23 +140,21 @@ module GameDayPropertiesTests =
         |> Answers.ofBoolArray
 
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
-    let ``GameDay property. Teams that gives only right answers is on the first place`` gameDay =
+    let ``GameDay property. Teams that gives only right answers are on the first place`` gameDay =
         
         let customTeam =  gameDay |> GameDay.teams |> createNewTeam 
         
-        let gameDay' =
-            let packageSize = gameDay.PackageSize
-            
-            let answers = allRightAnswers <| PositiveNum.value packageSize
+        let gameDayWithCustomTeam =
+            let answers = allRightAnswers <| PositiveNum.value gameDay.PackageSize
             
             {gameDay with Answers = gameDay.Answers |> Map.add customTeam answers}
             
-        let place = GameDay.getPlace gameDay' customTeam
+        let place = GameDay.getPlace gameDayWithCustomTeam customTeam
         
         place.From = PositiveNum.numOne
     
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
-    let ``Game day property. Teams that gives only wrong answers is on the last place`` gameDay =
+    let ``GameDay property. Teams that give only wrong answers are on the last place`` gameDay =
         
         let customTeam = gameDay |> GameDay.teams |> createNewTeam
         
@@ -200,7 +198,7 @@ module GameDayPropertiesTests =
             
         
     [<Property(QuietOnSuccess = true)>]
-    let ``Game day questions count are equal to questions array length`` num1 num2 =
+    let ``GameDay property. Questions package size are equal to questions array length`` num1 num2 =
         
         let precondition num1 num2 = num1 > 0 && num2 > 0 && num1 <> num2
         
@@ -231,7 +229,7 @@ module GameDayPropertiesTests =
         
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
-    let ``All team answers are wrong. Total answered is 0`` gameDay =
+    let ``GameDay property. All team answers are wrong. Total answered is 0`` gameDay =
         
         let loserTeam = gameDay |> GameDay.teams |> createNewTeam
          
@@ -248,7 +246,7 @@ module GameDayPropertiesTests =
         totalAnswered = 0<RightAnswer>
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
-    let ``All team answers are right. Total answered questions is equal to questions count`` gameDay =
+    let ``GameDay property. All team answers are right. Total answered questions is equal to questions count`` gameDay =
         
         let customTeam = gameDay |> GameDay.teams |> createNewTeam
         let answers = allRightAnswers (PositiveNum.value gameDay.PackageSize) 

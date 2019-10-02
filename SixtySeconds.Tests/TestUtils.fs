@@ -5,7 +5,6 @@ module FsCheckUtils =
     
     open FsCheck
     open Utils
-    open Domain
     
     type PositiveNumberTypes =
         static member ValidIntegers =
@@ -37,9 +36,9 @@ module FsCheckUtils =
                 |> Gen.map (fun s -> getId(), NoEmptyString.ofString s)
                 |> Gen.map (fun (num, name) -> {ID = num; Name = name})
                 
-            let answerGenerator =
+            let answerGenerator packageSize =
                 Arb.generate<Answer>
-                |> Gen.listOfLength 12
+                |> Gen.listOfLength packageSize
                 |> Gen.map Answers.ofSeq
             
             
@@ -47,32 +46,24 @@ module FsCheckUtils =
             
             gen {
                 
-                let! team1 = teamGenerator
-                let! answers1 = answerGenerator
+                let teamsCount, packageSize =
+                    match [1..100] |> Gen.elements |> Gen.sample 2 with
+                    | [|t; p|] -> t, p
+                    | x -> failwithf "Wrong generator value %A" x
                 
-                let! team2 = teamGenerator
-                let! answers2 = answerGenerator
+                let teams =
+                        teamGenerator |> Gen.sample teamsCount |> List.ofArray
                 
-                let! team3 = teamGenerator
-                let! answers3 = answerGenerator
-                
-                let! team4 = teamGenerator
-                let! answers4 = answerGenerator
-                
-                let! team5 = teamGenerator
-                let! answers5 = answerGenerator
+                let allAnswers = 
+                    answerGenerator packageSize
+                    |> Gen.sample teamsCount |> List.ofArray
                 
                 return {
                     Day = System.DateTime.Now
                     Answers =
-                        [
-                            (team1, answers1);
-                            (team2, answers2);
-                            (team3, answers3);
-                            (team4, answers4);
-                            (team5, answers5);
-                        ]
+                        allAnswers
+                        |> List.zip teams
                         |> List.fold (fun map (team, answers) -> map |> Map.add team answers) Map.empty
-                    PackageSize = PositiveNum.ofInt 12
+                    PackageSize = PositiveNum.ofInt packageSize
                 }
             } |> Arb.fromGen
