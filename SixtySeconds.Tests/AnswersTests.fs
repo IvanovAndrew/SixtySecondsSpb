@@ -3,6 +3,7 @@
 open NUnit.Framework
 open FsUnit
 open System
+open TestUtils
 
 [<TestFixture>]
 module AnswersTests =
@@ -15,7 +16,7 @@ module AnswersTests =
         
         let answers = Answers.ofBoolArray [|true; false; true; false; true;|]
                     
-        let sixthQuestion = 6 |> PositiveNum.ofInt
+        let sixthQuestion = 6 |> PositiveNum.ofInt |> okValueOrThrow
         
         (fun () -> answers |> Answers.getAnswer sixthQuestion |> ignore)
         |> should throw typeof<ArgumentException> 

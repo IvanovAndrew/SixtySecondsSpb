@@ -8,6 +8,8 @@ open FsUnit
 open FsCheck
 open FsCheck.NUnit
 
+
+
 [<TestFixture>]
 module GameDayExampleTests = 
 
@@ -17,8 +19,8 @@ module GameDayExampleTests =
 
     let createTeam id name =
         {
-            ID = id |> PositiveNum.ofInt;
-            Name = name |> NoEmptyString.ofString
+            ID = id |> PositiveNum.ofInt |> Utils.okValueOrThrow;
+            Name = name |> NoEmptyString.ofString |> Utils.okValueOrThrow
         }
         
     let firstTeam = createTeam 1 "Team1"
@@ -26,24 +28,28 @@ module GameDayExampleTests =
     let thirdTeam = createTeam 3 "Team3"
     let fourthTeam = createTeam 4 "Team4"
     
-    
+    let withTeam' team answers gameDay = GameDay.withTeam team answers gameDay |> Utils.okValueOrThrow
     
     let createEmptyGameDay questionsCount =
         {
             Day = DateTime.Now
             Answers = Map.empty
-            PackageSize = PositiveNum.ofInt questionsCount
+            PackageSize = questionsCount |> PositiveNum.ofInt |> Utils.okValueOrThrow
         }
     
     [<Test>]
     let ``LeadingTeams. N is greater than number of teams. Returns all teams``() = 
         
+        let positiveNum3 = 
+            PositiveNum.numOne |> PositiveNum.next |> PositiveNum.next
+        
+
         let gameDay =
             createEmptyGameDay 3
-            |> GameDay.withTeam firstTeam (Answers.ofBoolArray [|true; true; true;|])
-            |> GameDay.withTeam secondTeam (Answers.ofBoolArray [|false; false; false;|])
+            |> withTeam' firstTeam (Answers.ofBoolArray [|true; true; true;|])
+            |> withTeam' secondTeam (Answers.ofBoolArray [|false; false; false;|])
 
-        let top3Teams = GameDay.leadingTeams gameDay 3
+        let top3Teams = GameDay.leadingTeams gameDay positiveNum3
         let top3Count = top3Teams |> Seq.length
         
         top3Count |> should lessThan 3 
@@ -51,14 +57,17 @@ module GameDayExampleTests =
     [<Test>]
     let ``LeadingTeams. Two teams on secondPlace. Returns 3 teams on top2``() = 
         
+        let positiveNum2 = 
+            PositiveNum.numOne |> PositiveNum.next
+
         let gameDay = 
             createEmptyGameDay 5
-            |> GameDay.withTeam firstTeam (Answers.ofBoolArray [|true;true;true;true;true;|])
-            |> GameDay.withTeam secondTeam (Answers.ofBoolArray [|true;true;true;true;false;|])
-            |> GameDay.withTeam thirdTeam (Answers.ofBoolArray [|true;true;true;true;false;|])
-            |> GameDay.withTeam fourthTeam (Answers.ofBoolArray [|true;true;true;false;false;|])
+            |> withTeam' firstTeam (Answers.ofBoolArray [|true;true;true;true;true;|])
+            |> withTeam' secondTeam (Answers.ofBoolArray [|true;true;true;true;false;|])
+            |> withTeam' thirdTeam (Answers.ofBoolArray [|true;true;true;true;false;|])
+            |> withTeam' fourthTeam (Answers.ofBoolArray [|true;true;true;false;false;|])
     
-        let top2Teams = GameDay.leadingTeams gameDay 2
+        let top2Teams = GameDay.leadingTeams gameDay positiveNum2
         let n = top2Teams |> Seq.length
         
         n |> should equal 3 
@@ -68,9 +77,9 @@ module GameDayExampleTests =
         
         let gameDay = 
             createEmptyGameDay 5
-            |> GameDay.withTeam firstTeam (Answers.ofBoolArray [|true;false;false;true;true;|])
+            |> withTeam' firstTeam (Answers.ofBoolArray [|true;false;false;true;true;|])
             
-        let firstQuestion = 1 |> PositiveNum.ofInt
+        let firstQuestion = PositiveNum.numOne
         let answerOnFirstQuestion = GameDay.getAnswer gameDay firstTeam firstQuestion
         
         answerOnFirstQuestion |> should equal Answer.Right 
@@ -80,7 +89,7 @@ module GameDayExampleTests =
         
         let gameDay = 
             createEmptyGameDay 5
-            |> GameDay.withTeam firstTeam (Answers.ofBoolArray [|true;false;false;true;true;|])
+            |> withTeam' firstTeam (Answers.ofBoolArray [|true;false;false;true;true;|])
             
         let secondQuestion = PositiveNum.numOne |> PositiveNum.next
         let answerOnSecondQuestion = GameDay.getAnswer gameDay firstTeam secondQuestion
@@ -94,8 +103,8 @@ module GameDayExampleTests =
     
         let gameDay =
             createEmptyGameDay 1
-            |> GameDay.withTeam firstTeam (Answers.ofBoolArray [|true;|])
-            |> GameDay.withTeam secondTeam (Answers.ofBoolArray [|false;|])
+            |> withTeam' firstTeam (Answers.ofBoolArray [|true;|])
+            |> withTeam' secondTeam (Answers.ofBoolArray [|false;|])
             
                     
         let distance = GameDay.getDistanceFromTheFirstPlace gameDay secondTeam PositiveNum.numOne
@@ -114,6 +123,7 @@ module GameDayPropertiesTests =
             teams
             |> Seq.length
             |> PositiveNum.ofInt
+            |> okValueOrThrow
             |> PositiveNum.next
             |> PositiveNum.createNaturalRange
         
@@ -126,7 +136,9 @@ module GameDayPropertiesTests =
             |> Seq.except usedIDs
             |> Seq.head
         
-        {ID = newId; Name = NoEmptyString.ofString "Custom team"}
+        {ID = newId; Name = okValueOrThrow <| NoEmptyString.ofString "Custom team"}
+
+    let withTeam' team answers gameDay = GameDay.withTeam team answers gameDay |> Utils.okValueOrThrow
         
     let allWrongAnswers questionsCount =
         
@@ -165,7 +177,7 @@ module GameDayPropertiesTests =
             
             {gameDay with Answers = gameDay.Answers |> Map.add customTeam answers}
         
-        let lastPlace = gameDay' |> GameDay.teams |> Seq.length |> PositiveNum.ofInt
+        let lastPlace = gameDay' |> GameDay.teams |> Seq.length |> PositiveNum.ofInt |> okValueOrThrow
             
         let place = GameDay.getPlace gameDay' customTeam
         
@@ -175,7 +187,7 @@ module GameDayPropertiesTests =
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
     let ``GameDay property. Leading team has 0 distance from the first place`` gameDay =
         
-        let leader = GameDay.leadingTeams gameDay 1 |> Seq.head
+        let leader = GameDay.leadingTeams gameDay PositiveNum.numOne |> Seq.head
         
         let distance = GameDay.getDistanceFromTheFirstPlace gameDay leader gameDay.PackageSize
         distance = 0<RightAnswer>
@@ -193,7 +205,7 @@ module GameDayPropertiesTests =
         with
             | :? ArgumentException as ex ->
                 
-                StringUtils.containsSubstring "is already added" ex.Message 
+                String.containsSubstring "is already added" ex.Message 
             | _ -> false
             
         
@@ -208,10 +220,10 @@ module GameDayPropertiesTests =
                 {
                     Day = DateTime.Now;
                     Answers = Map.empty;
-                    PackageSize = PositiveNum.ofInt questionsCount
+                    PackageSize = questionsCount |> PositiveNum.ofInt |> okValueOrThrow
                 }
                 
-            let customTeam = {ID = PositiveNum.numOne; Name = NoEmptyString.ofString "Test team"}
+            let customTeam = {ID = PositiveNum.numOne; Name = okValueOrThrow <| NoEmptyString.ofString "Test team"}
             let answers = Array.init answersLength (fun _ -> true) |> Answers.ofBoolArray
             
             try 
@@ -222,7 +234,7 @@ module GameDayPropertiesTests =
             with
                 | :? ArgumentException as ex ->
                     
-                    StringUtils.containsSubstring "answers" ex.Message
+                    String.containsSubstring "answers" ex.Message
                 | _ -> false
                 
         (precondition num1 num2) ==> lazy(property num1 num2)
@@ -239,7 +251,7 @@ module GameDayPropertiesTests =
             let answers = allWrongAnswers <| PositiveNum.value gameDay.PackageSize
             
             gameDay
-            |> GameDay.withTeam loserTeam answers
+            |> withTeam' loserTeam answers
         
         let totalAnswered = GameDay.totalAnswered gameDayWithLoserTeam gameDayWithLoserTeam.PackageSize loserTeam
         
@@ -253,7 +265,7 @@ module GameDayPropertiesTests =
         
         let gameDayWithCustomTeam = 
             gameDay
-            |> GameDay.withTeam customTeam answers
+            |> withTeam' customTeam answers
         
         let totalAnswered = GameDay.totalAnswered gameDayWithCustomTeam gameDay.PackageSize customTeam
         

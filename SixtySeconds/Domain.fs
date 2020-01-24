@@ -71,22 +71,30 @@ module GameDay =
         
     let withTeam team answers gameDay =
         
-        let questionsCountCorrect a =
-            let answersCount = answers |> Answers.count
+        let checkQuestionsCount a = 
             
-            answersCount = gameDay.PackageSize
-        
-        let teamIsAdded g t =             
-            g.Answers
-            |> Map.containsKey t 
+            answers 
+            |> Answers.count
+            |> Result.bind(fun count -> if count = gameDay.PackageSize then Ok() else Error "Questions count mismatching")
+
+        let checkIfTeamAdded t = 
             
-         
-        if not <| questionsCountCorrect gameDay.Answers then invalidArg "answers" "Questions count mismatching"
-        if teamIsAdded gameDay team then invalidArg "team" <| sprintf "Team %A is already added" team
-        
-        let newAnswers = gameDay.Answers |> Map.add team answers
-        
-        {gameDay with Answers = newAnswers}
+            let teamAdded = 
+                gameDay.Answers
+                |> Map.containsKey t
+
+            if teamAdded then sprintf "Team %s is already added" <| NoEmptyString.value t.Name |> Error 
+            else Ok()
+
+        result{
+            
+            let! _ = checkQuestionsCount answers
+                
+            let! _ = checkIfTeamAdded team
+            
+            let newAnswers = gameDay.Answers |> Map.add team answers
+            return {gameDay with Answers = newAnswers}
+        }
         
         
     let teams gameDay = 
@@ -166,17 +174,19 @@ module GameDay =
     
     let leadingTeams gameDay n = 
         
+        let q = PositiveNum.value n
+
         gameDay
         |> teams
         |> Seq.groupBy (fun t -> totalAnswered gameDay gameDay.PackageSize t)
         |> Seq.sortByDescending fst
         |> Seq.fold (fun res group -> 
-                            if n > Seq.length res 
+                            if q > Seq.length res 
                             then group |> snd |> Seq.append res 
                             else res) Seq.empty
 
     /// 
-    let getWinnerTeam gameDay = leadingTeams gameDay 1
+    let getWinnerTeam gameDay = leadingTeams gameDay PositiveNum.numOne
 
 
     /// 
@@ -218,11 +228,15 @@ module SeasonTable =
     
     let ofSeq data = 
         
-        {
-            Table = data |> Seq.map (fun (team, rating) -> team, rating |> Seq.sum) |> Seq.sortByDescending snd
-            Results = data |> Map.ofSeq
-            GamesCount = data |> Seq.map (snd >> Seq.length) |> Seq.max |> PositiveNum.ofInt
-        }
+        let create gamesCount = 
+            {
+                Table = data |> Seq.map (fun (team, rating) -> team, rating |> Seq.sum) |> Seq.sortByDescending snd
+                Results = data |> Map.ofSeq
+                GamesCount = gamesCount
+            }
+
+        data |> Seq.map (snd >> Seq.length) |> Seq.max |> PositiveNum.ofInt
+        |> Result.map create
 
 
     let topNResult resultsToCount seasonTable = 
@@ -230,16 +244,16 @@ module SeasonTable =
         let topResults allResults =
             
             let gamesToCount = 
-                if resultsToCount > seasonTable.GamesCount
-                then seasonTable.GamesCount
-                else resultsToCount
+                let t = 
+                    if resultsToCount > seasonTable.GamesCount
+                    then seasonTable.GamesCount
+                    else resultsToCount
+                t |> PositiveNum.value
             
-            let length = allResults |> Seq.length |> PositiveNum.ofInt
-
             let topResults = 
-                if length < gamesToCount 
+                if gamesToCount > Seq.length allResults 
                 then allResults
-                else allResults |> Seq.sortByDescending id |> Seq.take (gamesToCount |> PositiveNum.value)
+                else allResults |> Seq.sortByDescending id |> Seq.take gamesToCount
                     
             topResults |> Seq.sum
 

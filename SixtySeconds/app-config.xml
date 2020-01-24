@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <config>
   <Google>
-    <SpreadsheetID>1k8rSicdEOsi9O4btqmxNpi6RR7gFlpAQ6PEASamgXzk</SpreadsheetID>
+    <SpreadsheetID>1wT06cbVBPwhetGqlAEsYF8-kAUiZ8fQXf5nqI1jools</SpreadsheetID>
     <SheetRows>
       <FirstQuestion>3</FirstQuestion>
     </SheetRows>
@@ -13,7 +13,7 @@
     </SheetColumns>
   </Google>
   <SixtySeconds>
-    <PubHtml>https://docs.google.com/spreadsheets/d/e/2PACX-1vS2pjUg-q6QPFNgobutdGhoEKytBi3RfL86ycbSa6x6-cHlHxj75N4cPVlu83hUvyE-V_NEWOvKa4iO/pubhtml</PubHtml>
-    <TeamID>3</TeamID>
+    <PubHtml>https://docs.google.com/spreadsheets/d/e/2PACX-1vQB1GBzm682lz_bTuoBulttMGaSU4DmzzUJWMlTQll4KouQE83Zs4zJphTXkOULViTDcqmPnE8HLXB2/pubhtml</PubHtml>
+    <TeamID>38</TeamID>
   </SixtySeconds>
 </config>

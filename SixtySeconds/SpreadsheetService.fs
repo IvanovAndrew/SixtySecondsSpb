@@ -9,10 +9,7 @@ open Google.Apis.Util.Store
 open System
 open System.IO
 open System.Threading
-
-type Status = 
-    | SUCCESS
-    | ERROR of string
+open Utils
 
 type ServiceMode = 
     | ReadOnly
@@ -114,8 +111,8 @@ let AsyncUpdateRequest (service : SheetsService) spreadsheetID valueRange =
 
         let result = 
             match updateResponse.UpdatedRows |> Option.ofNullable with
-            | Some value when value > 0 -> SUCCESS
-            | _ -> ERROR "No one rows are updated"
+            | Some value when value > 0 -> Ok()
+            | _ -> Error "No one rows are updated"
         
         return result
     }

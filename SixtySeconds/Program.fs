@@ -4,6 +4,7 @@ open Utils
 open SpreadsheetService
 open GoogleChartService
 open PositiveNum
+open SpreadsheetWriter
 
 
 type WriteMode = 
@@ -11,7 +12,7 @@ type WriteMode =
     | ReadAndWrite of string
 
 type TeamChartMode = 
-    | Show of int
+    | Show of PositiveNum
 
 type CommandLineOption = 
     {
@@ -21,47 +22,18 @@ type CommandLineOption =
         TeamChart : TeamChartMode option
         Total : PositiveNum option
     }
-
-let writeToSpreadsheet sheetName outputParams = 
     
-    let google = Config.GetSample().Google
-    let service = 
-        SpreadsheetService.AsyncGetService ServiceMode.ReadWrite 
-        |> Async.RunSynchronously
-    let firstRow = google.SheetRows.FirstQuestion
 
-    let teamAnswers, rightAnsweredOn, places, distance = outputParams
+let teamGameDay gameDay team = 
+    let allQuestions = 
+        PositiveNum.createNaturalRange gameDay.PackageSize
 
-    let getRange column valuesCount = 
-        sprintf "%s!%s%d:%s%d" sheetName column firstRow column <| firstRow + valuesCount
-
-    let createValueRange column values = 
-        let range = getRange column <| Seq.length values
-        SpreadsheetService.createValueRange range MajorDimension.Column values
-
-    let update range = 
-        
-        let result = 
-            range 
-            |> SpreadsheetService.AsyncUpdateRequest service google.SpreadsheetId 
-            |> Async.RunSynchronously
-
-        match result with 
-        | SUCCESS -> printfn "Written in %A" range.Range
-        | ERROR x -> printfn "Error: %s" x
-
-    [
-        // пишем, ответили ли мы
-        (google.SheetColumns.TeamAnswered, teamAnswers |> Seq.map (function Right ->  "'+" | _ -> "") |> Array.ofSeq)
-        // пишем число ответивших на вопрос
-        (google.SheetColumns.Answered, rightAnsweredOn |> Seq.map string |> Array.ofSeq)
-        // пишем место
-        (google.SheetColumns.Place, places |> Seq.map (fun p -> sprintf "%d-%d" <| PositiveNum.value p.From <| PositiveNum.value p.To) |> Array.ofSeq)
-        // пишем отставание
-        (google.SheetColumns.Distance, distance |> Seq.map string |> Array.ofSeq)
-    ]
-    |> List.map (fun t -> createValueRange <| fst t <| snd t)
-    |> List.iter update
+    {
+        TeamAnswers = allQuestions |> Seq.map (GameDay.getAnswer gameDay team)
+        RightAnswersOn = allQuestions |> Seq.map (GameDay.rightAnswersOnQuestion gameDay)
+        Places = allQuestions |> Seq.map (GameDay.getPlaceAfterQuestion gameDay team)
+        Distance = allQuestions |> Seq.map (GameDay.getDistanceFromTheFirstPlace gameDay team)
+    }
 
 let showGraphic data teams gameDay vAxis = 
     
@@ -81,6 +53,8 @@ let showGraphic data teams gameDay vAxis =
         }
 
     GoogleChart.showData graphicData labels <| ChartType.Line options
+
+
 
 let showPlacesQuestionByQuestion gameDay teams = 
     
@@ -118,10 +92,8 @@ let showPointsQuestionByQuestion gameDay teams =
     showGraphic rightAnswers teams gameDay verticalAxis
 
 
-let showTotalTable url topN = 
+let showTotalTable data topN = 
         
-    let data = url |> Parser.parseTotal
-
     let topNResultTable = 
         data
         |> SeasonTable.topNResult topN
@@ -151,32 +123,31 @@ let processGameDay options gameDay =
     match myTeam with 
     | Some team -> 
 
-        let outParams = 
+        let data = teamGameDay gameDay team
                 
-            let allQuestions = 
-                PositiveNum.createNaturalRange gameDay.PackageSize
-
-            let teamAnswered = 
-                allQuestions
-                |> Seq.map (GameDay.getAnswer gameDay team)
-
-            let rightAnsweredOn = 
-                allQuestions
-                |> Seq.map (GameDay.rightAnswersOnQuestion gameDay)
-
-            let places = 
-                allQuestions
-                |> Seq.map (GameDay.getPlaceAfterQuestion gameDay team)
-
-            let distance = 
-                allQuestions 
-                |> Seq.map (GameDay.getDistanceFromTheFirstPlace gameDay team)
-
-            teamAnswered, rightAnsweredOn, places, distance
-                
-
         match options.WriteMode with 
-        | ReadAndWrite sheetId -> writeToSpreadsheet sheetId outParams
+        | ReadAndWrite sheetId -> 
+            
+            let google = Config.GetSample().Google
+            
+            let spreadsheetId = google.SpreadsheetId
+
+            let options = 
+                
+                
+                {
+                    FirstQuestion = google.SheetRows.FirstQuestion
+
+                    TeamAnswered = google.SheetColumns.TeamAnswered
+                    Answered = google.SheetColumns.Answered
+                    Place = google.SheetColumns.Place
+                    Distance = google.SheetColumns.Distance
+                }
+
+            data
+            |> SpreadsheetWriter.write options spreadsheetId sheetId 
+            |> Async.RunSynchronously
+            |> ignore
         | _ -> ()
 
         let showTeamChart mode = 
@@ -205,28 +176,44 @@ let processGameDay options gameDay =
 
 let rec parseCommandLine argv optionsSoFar = 
     
-    match argv with 
-    | [] -> optionsSoFar
+    match optionsSoFar with 
+    | Error e -> Error e 
+    | Ok options -> 
+
+        match argv with 
+        | [] -> optionsSoFar
         
-    | "-read" :: sheetInput :: tail -> 
-        let newOptions = {optionsSoFar with SheetId = Some sheetInput}
-        parseCommandLine tail newOptions
+        | "-read" :: sheetInput :: tail -> 
+            let newOptions = Ok {options with SheetId = Some sheetInput}
+            parseCommandLine tail newOptions
 
-    | "-team" :: team :: tail -> 
-        parseCommandLine tail {optionsSoFar with TeamId = team |> int |> PositiveNum.ofInt}
+        | "-team" :: team :: tail -> 
+            
+            let options =
+                match team |> PositiveNum.ofString  with 
+                | Ok teamId -> 
+                    Ok {options with TeamId = teamId}
+                | Error e -> Error e
+            parseCommandLine tail options
 
-    | "-write" :: sheetOutput :: tail -> 
-        parseCommandLine tail {optionsSoFar with WriteMode = sheetOutput |> ReadAndWrite}
+        | "-write" :: sheetOutput :: tail -> 
+            parseCommandLine tail <| Ok {options with WriteMode = sheetOutput |> ReadAndWrite}
     
-    | "-show" :: topN :: tail ->
-        let options = {optionsSoFar with TeamChart = topN |> int |> Show |> Some }
-        parseCommandLine tail options
+        | "-show" :: topN :: tail ->
+            topN |> PositiveNum.ofString 
+            |> Result.bind (fun teams -> parseCommandLine tail <| Ok {options with TeamChart = teams |> Show |> Some})
+            
 
-    | "-total" :: games :: tail -> 
-        let options = {optionsSoFar with Total = games |> int |> PositiveNum.ofInt |> Some}
-        parseCommandLine tail options
+        | "-total" :: games :: tail -> 
+            
+            let totalGamesResult = games |> PositiveNum.ofString
+            match totalGamesResult with 
+            | Error e -> Error e
+            | Ok r -> 
+                parseCommandLine tail <| Ok {options with Total = r |> Some}
+            
 
-    | x::xs -> failwithf "Option '%s' is unrecognized" x
+        | x::xs -> Error <| sprintf "Option '%s' is unrecognized" x
 
 
 [<EntryPoint>]
@@ -234,24 +221,64 @@ let main argv =
     
     let options = 
         let argsList = argv |> List.ofArray
-        let defaultOptions = 
-            {
-                SheetId = None
-                TeamId = Config.GetSample().SixtySeconds.TeamId |> PositiveNum.ofInt
-                WriteMode = ReadOnly
-                TeamChart = None
-                Total = None
+        
+        let result = 
+            result{
+                let! defaultTeamId = Config.GetSample().SixtySeconds.TeamId |> PositiveNum.ofInt 
+            
+                let defaultOptions = 
+                    {
+                        SheetId = None
+                        TeamId = defaultTeamId
+                        WriteMode = ReadOnly
+                        TeamChart = None
+                        Total = None
+                    } |> Ok
+
+                return! parseCommandLine argsList defaultOptions 
             }
-        parseCommandLine argsList defaultOptions
+        
+        match result with 
+        | Ok value -> value
+        | Error e -> failwith e
+
 
     let sixtySeconds = Config.GetSample().SixtySeconds
 
-    options.SheetId 
-    |> Option.map (fun sheetInput -> sixtySeconds.PubHtml |> Parser.parse sheetInput)
-    |> Option.iter (processGameDay options)
-    
+    match options.SheetId with 
+    | Some sheet -> 
+        
+        let res = 
+            async {
+                let! document = 
+                    sixtySeconds.PubHtml 
+                    |> Parser.asyncLoadDocument 
 
-    options.Total
-    |> Option.iter (showTotalTable sixtySeconds.PubHtml)
+                return
+                    document
+                    |> Result.bind (Parser.parse sheet)
+                    |> Result.map (processGameDay options)
+            } |> Async.RunSynchronously
+        
+        match res with 
+        | Error e -> failwith e
+        | Ok _ -> ()
+    | None -> ()
+    
+    let seasonTableResult = 
+        match options.Total with
+        | Some gamesToCount -> 
+            
+            async {
+                let! document = sixtySeconds.PubHtml |> Parser.asyncLoadDocument
+
+                return 
+                    document
+                    |> Result.bind Parser.parseTotal 
+                    |> Result.map (fun seasonTable -> showTotalTable seasonTable gamesToCount)
+            } |> Async.RunSynchronously
+
+            
+        | None -> Ok()
         
     0 // return an integer exit code

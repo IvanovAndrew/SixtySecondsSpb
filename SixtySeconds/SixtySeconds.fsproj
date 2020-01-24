@@ -1,16 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="app-config.xml" />
     <Compile Include="Config.fs" />
+    <Compile Include="Utils.fs" />
     <Compile Include="GoogleChartService.fs" />
     <Compile Include="SpreadsheetService.fs" />
-    <Compile Include="Utils.fs" />
     <Compile Include="Domain.fs" />
     <Compile Include="Parser.fs" />
+    <Compile Include="SpreadsheetWriter.fs" />
     <Compile Include="Program.fs" />
     <Content Include="Google.DataTable.Net.Wrapper.XML" />
     <None Include="credentials.json">
@@ -18,8 +19,8 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Data" Version="3.3.2" />
-    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.40.2.1614" />
-    <PackageReference Include="XPlot.GoogleCharts" Version="2.0.0" />
+    <PackageReference Include="FSharp.Data" Version="3.3.3" />
+    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.43.0.1832" />
+    <PackageReference Include="XPlot.GoogleCharts" Version="3.0.1" />
   </ItemGroup>
 </Project>

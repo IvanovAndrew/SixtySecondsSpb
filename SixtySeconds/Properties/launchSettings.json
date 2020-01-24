@@ -2,7 +2,7 @@
   "profiles": {
     "SixtySeconds": {
       "commandName": "Project",
-      "commandLineArgs": "-read 1.07 -total 5 -show 3"
+      "commandLineArgs": "-read 7.10 -total 3 -show 3"
     }
   }
 }

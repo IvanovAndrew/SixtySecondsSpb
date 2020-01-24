@@ -3,6 +3,7 @@
 open NUnit.Framework
 open FsCheck.NUnit
 open FsCheck
+open TestUtils
 
 [<TestFixture>]
 module PropertyBasedTests = 
@@ -15,54 +16,39 @@ module PropertyBasedTests =
 
     let createRange x y z =
         let first, step, last =
-            x |> PositiveNum.ofInt,
-            y |> PositiveNum.ofInt,
-            z |> PositiveNum.ofInt
+            x |> PositiveNum.ofInt |> Utils.okValueOrThrow,
+            y |> PositiveNum.ofInt |> Utils.okValueOrThrow,
+            z |> PositiveNum.ofInt |> Utils.okValueOrThrow
         
         PositiveNum.createRange first step last
     
         
-    
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<NegativeIntTypes>|])>]    
+    let ``PositiveNum property. Positive number can't be created from negative number or zero`` negativeNumber =
         
+        match negativeNumber |> PositiveNum.ofInt with 
+        | Ok _ -> false
+        | Error message -> String.containsSubstring "must be positive" message
+        
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveIntTypes>|])>]
+    let ``PositiveNum property. Positive number can be created from positive integers`` positiveInt =
+            
+            match positiveInt |> PositiveNum.ofInt with 
+            | Ok _ -> true
+            | _ -> false
 
-    [<Property(QuietOnSuccess = true)>]    
-    let ``PositiveNum property. Positive number can't be created from negative number or zero`` x =
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveIntTypes>|])>]        
+    let ``PositiveNum property. Value (ofInt (number)) = number`` positiveInt =
         
-        let positiveNumOfNegativeNumber x =
-            
-            try 
-                let positiveNum = x |> PositiveNum.ofInt
-                false
-            with
-                | :? ArgumentException as ex->
-                    StringUtils.containsSubstring "must be positive" ex.Message
-                | _ -> false
-        
-        x <= 0 ==> lazy(positiveNumOfNegativeNumber x)(**)
-        
-    [<Property(QuietOnSuccess = true)>]
-    let ``PositiveNum property. Positive number can be created from positive integers`` x =
-            
-        let positiveNumOfPositiveNumber input =
-            
-            try 
-                let positiveNum = input |> PositiveNum.ofInt
-                true
-            with
-                | _ -> false
-        
-        x > 0 ==> lazy(positiveNumOfPositiveNumber x)
-
-    [<Property(QuietOnSuccess = true)>]        
-    let ``PositiveNum property. Value (ofInt (number)) = number`` number =
-        
-        let reversableOperations x =
-            x
+        let result = 
+            positiveInt
             |> PositiveNum.ofInt
-            |> PositiveNum.value
-            |> (=) x
+            |> Result.map PositiveNum.value
         
-        (number > 0) ==> lazy(reversableOperations number)
+        match result with 
+        | Ok num -> num = positiveInt
+        | _ -> false
+        
 
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
     let ``PositiveNum property. Next positive number is greater`` current =
@@ -79,7 +65,7 @@ module PropertyBasedTests =
     let ``PositiveNum property. Previous positive num is less`` positiveNum =
         
         let previousNumberIsLess current = 
-            let previousPositiveNum = current |> PositiveNum.previous
+            let previousPositiveNum = current |> PositiveNum.previous |> Utils.okValueOrThrow
             
             let previousValue, currentValue =
                 
@@ -92,19 +78,28 @@ module PropertyBasedTests =
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
     let ``PositiveNum property. Previous (Next (number)) = number`` positiveNum =
         
-        positiveNum
-        |> PositiveNum.next
-        |> PositiveNum.previous
-        |> ((=) positiveNum)
+        let result = 
+            positiveNum
+            |> PositiveNum.next
+            |> PositiveNum.previous
+        
+        match result with 
+        | Ok num -> num = positiveNum
+        | _ -> false
 
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
     let ``PositiveNum property. Next (Previous (number)) = number`` positiveNum =
         
         let reversableProperty x = 
-            x
-            |> PositiveNum.previous
-            |> PositiveNum.next
-            |> ((=) x)
+            
+            let result = 
+                x
+                |> PositiveNum.previous
+                |> Result.map PositiveNum.next
+            
+            match result with 
+            | Ok num -> num = x
+            | Error e -> false
             
         (positiveNum <> PositiveNum.numOne) ==> lazy(reversableProperty positiveNum) 
 
@@ -116,7 +111,7 @@ module PropertyBasedTests =
             let previousThenNext =
                 x
                 |> PositiveNum.previous
-                |> PositiveNum.next
+                |> Result.map PositiveNum.next
             
             let nextThenPrevious =
                 x
@@ -129,7 +124,7 @@ module PropertyBasedTests =
         
 
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
-    let ``PositiveNum property. First number of natural range is 1`` naturalRangeLength =
+    let ``PositiveNum property. The first number of natural range is 1`` naturalRangeLength =
         
         let firstItem = naturalRangeLength |> PositiveNum.createNaturalRange |> Seq.head
         
@@ -178,17 +173,10 @@ module PropertyBasedTests =
         
         precondition ==> lazy(maximumValueIsLastItem x y z)
 
-    [<Property(QuietOnSuccess = true)>]
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveIntTypes>|])>]
     let ``PositiveNum property. All range numbers are unique`` x y z =
         
-        let precondition = (x > 0 && y > 0 && z > 0) 
+        let range = createRange x y z
+        let uniqueRange = range |> Seq.distinct
         
-        let allItemsAreUnique x y z =
-            
-            let range = createRange x y z
-            let uniqueRange = range |> Seq.distinct
-            
-            Seq.length range = Seq.length uniqueRange 
-            
-        
-        precondition ==> lazy (allItemsAreUnique x y z)
+        Seq.length range = Seq.length uniqueRange 
