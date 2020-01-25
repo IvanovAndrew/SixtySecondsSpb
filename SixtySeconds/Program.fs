@@ -157,7 +157,7 @@ let processGameDay options gameDay =
                 
                 let teams = 
                     [team]
-                    |> Seq.append (GameDay.leadingTeams gameDay topN)
+                    |> Seq.append (GameDay.leadingTeams topN gameDay)
                     |> Seq.distinct
 
                 showPlacesQuestionByQuestion gameDay teams

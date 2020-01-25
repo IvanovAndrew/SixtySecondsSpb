@@ -49,7 +49,7 @@ module GameDayExampleTests =
             |> withTeam' firstTeam (Answers.ofBoolArray [|true; true; true;|])
             |> withTeam' secondTeam (Answers.ofBoolArray [|false; false; false;|])
 
-        let top3Teams = GameDay.leadingTeams gameDay positiveNum3
+        let top3Teams = GameDay.leadingTeams positiveNum3 gameDay
         let top3Count = top3Teams |> Seq.length
         
         top3Count |> should lessThan 3 
@@ -67,7 +67,7 @@ module GameDayExampleTests =
             |> withTeam' thirdTeam (Answers.ofBoolArray [|true;true;true;true;false;|])
             |> withTeam' fourthTeam (Answers.ofBoolArray [|true;true;true;false;false;|])
     
-        let top2Teams = GameDay.leadingTeams gameDay positiveNum2
+        let top2Teams = GameDay.leadingTeams positiveNum2 gameDay
         let n = top2Teams |> Seq.length
         
         n |> should equal 3 
@@ -187,7 +187,10 @@ module GameDayPropertiesTests =
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
     let ``GameDay property. Leading team has 0 distance from the first place`` gameDay =
         
-        let leader = GameDay.leadingTeams gameDay PositiveNum.numOne |> Seq.head
+        let leader =
+            gameDay
+            |> GameDay.leadingTeams PositiveNum.numOne
+            |> Seq.head
         
         let distance = GameDay.getDistanceFromTheFirstPlace gameDay leader gameDay.PackageSize
         distance = 0<RightAnswer>

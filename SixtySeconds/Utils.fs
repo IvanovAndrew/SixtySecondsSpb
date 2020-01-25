@@ -39,10 +39,27 @@ type ResultBuilder() =
 
 let result = new ResultBuilder()
 
-let toResultOfSeq acc result = 
-    
-    acc 
-    |> Result.bind (fun items -> match result with Ok item -> Ok ([item] |> Seq.append items) | Error e -> Error e)
+module Result =
+    let ofOption errorData opt =
+        match opt with
+        | Some value -> Ok value
+        | None -> Error errorData
+        
+    let toOption result =
+        match result with
+        | Ok value -> Some value
+        | Error _ -> None 
+
+    let OfSeq state items =
+        
+        let folder acc itemResult = 
+            match acc, itemResult with
+            | Ok subseq, Ok item -> Ok <| Seq.append subseq [item]
+            | Ok _, Error e -> Error e
+            | Error e, _ -> Error e
+        
+        items
+        |> Seq.fold folder state
     
 module String  = 
     open System

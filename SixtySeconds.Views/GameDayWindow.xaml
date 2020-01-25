@@ -5,9 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SixtySeconds.Views"
         mc:Ignorable="d"
-        Title="GameDayWindow" Width="450" Height="100">
+        Title="GameDayWindow" Width="600" Height="400">
     <Window.Resources>
-        <Style x:Key="textBoxInError" TargetType="Control">
+        <Style x:Key="TextBoxInError" TargetType="Control">
             <Setter Property="Validation.ErrorTemplate">
                 <Setter.Value>
                     <ControlTemplate>
@@ -30,13 +30,80 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="TextBlock" TargetType="TextBlock">
+            <Style.Setters>
+                <Setter Property="Margin" Value="10 10 10 10"/>
+                <Setter Property="TextAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style.Setters>
+        </Style>
+        <Style x:Key="TextBox" TargetType="TextBox">
+            <Style.Setters>
+                <Setter Property="Margin" Value="0 5 10 5"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style.Setters>
+        </Style>
     </Window.Resources>
     <StackPanel>
         <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Team ID" Margin="10 10 10 10" Width="50" TextAlignment="Center" VerticalAlignment="Center"/>
-            <TextBox Text="{Binding TeamId, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource textBoxInError}" VerticalAlignment="Center" Width="50" Margin="0 5 10 5"/>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Team IDs" Width="100" Style="{StaticResource TextBlock}"/>
+                <TextBox Text="{Binding TeamIds, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Best teams" Width="75" Style="{StaticResource TextBlock}"/>
+                <TextBox Text="{Binding BestTeams, UpdateSourceTrigger=PropertyChanged}" Width="50" Style="{StaticResource TextBox}"/>
+            </StackPanel>
             <Button Command="{Binding ShowCharts}" Content="Show charts" Margin="0 5 10 5" Width="150" VerticalAlignment="Center" />
-            <Button Command="{Binding OpenSpreadsheetWindow}" Content="Write to spreadsheet" Margin="0 5 10 5" Width="150" VerticalAlignment="Center" />
+            <TextBlock Foreground="Red"
+                       Visibility="{Binding ChartsErrorMessageVisibility}"
+                       Text="{Binding ChartsErrorMessage}"
+                       Style="{StaticResource TextBlock}"/>
+        </StackPanel>
+    <Separator/>
+    <StackPanel>
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Text="Team ID" Width="100" Style="{StaticResource TextBlock}"/>
+            <TextBox Text="{Binding TeamID, UpdateSourceTrigger=PropertyChanged}" Width="50" Style="{StaticResource TextBox}"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Text="SpreadsheetID" Width="100" Style="{StaticResource TextBlock}"/>
+            <TextBox Text="{Binding SpreadsheetID, UpdateSourceTrigger=PropertyChanged}" Width="200" Style="{StaticResource TextBox}"/>
+            <TextBlock Text="Sheet" Width="100" Style="{StaticResource TextBlock}"/>
+            <TextBox Text="{Binding SheetName, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+        </StackPanel>
+        <StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Team answered column" Width="100" Style="{StaticResource TextBlock}"/>
+                <TextBox Text="{Binding TeamAnsweredColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Right Answers column" Width="100" Style="{StaticResource TextBlock}"/>
+                <TextBox Text="{Binding RightAnswersColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Places column" Width="100" Style="{StaticResource TextBlock}"/>
+                <TextBox Text="{Binding PlacesColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Distance column" Width="100" Style="{StaticResource TextBlock}"/>
+                <TextBox Text="{Binding DistanceColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="First Question Row" Width="100" Style="{StaticResource TextBlock}"/>
+                <TextBox Text="{Binding FirstQuestionColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+            </StackPanel>
+                <Button Command="{Binding WriteToSpreadsheet}" Content="Write" Margin="0 5 10 5" Width="75" VerticalAlignment="Center" />
+                <TextBlock Foreground="Red"
+                    Text="{Binding StatusMessage}" 
+                    Visibility="{Binding ErrorMessageVisibility}" 
+                    Style="{StaticResource TextBlock}"/>
+                <TextBlock 
+                    Text="{Binding StatusMessage}" 
+                    Visibility="{Binding SuccessMessageVisibility}" 
+                    Foreground="Green"
+                    Style="{StaticResource TextBlock}"/>
+            </StackPanel>
         </StackPanel>
     </StackPanel>
 </Window>

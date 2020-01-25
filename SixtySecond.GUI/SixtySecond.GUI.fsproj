@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="SpreadsheetApp.fs" />
     <Compile Include="SeasonTableApp.fs" />
     <Compile Include="GameDayApp.fs" />
     <Compile Include="Program.fs" />

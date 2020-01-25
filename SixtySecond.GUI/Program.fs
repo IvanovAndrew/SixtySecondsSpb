@@ -97,10 +97,11 @@ let update msg m =
                 return document |> Result.bind (Parser.parse gameName)
             } |> Async.RunSynchronously
             
-
         match gameDayResult with 
         | Ok gameDay -> 
-            {m with GameDayWindow = Some {GameDay = gameDay; TeamId = ""; SpreadsheetWindow = None}}
+            {m with
+                GameDayWindow = GameDayApp.init gameDay |> Some
+            }
         | Error e -> {m with ErrorMessage = Some e}
 
     | GameDayMessage message -> 

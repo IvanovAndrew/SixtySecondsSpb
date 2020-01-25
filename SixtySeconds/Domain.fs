@@ -172,7 +172,7 @@ module GameDay =
         |> Seq.sumBy Answer.toRightAnswer
 
     
-    let leadingTeams gameDay n = 
+    let leadingTeams n gameDay = 
         
         let q = PositiveNum.value n
 
@@ -186,7 +186,7 @@ module GameDay =
                             else res) Seq.empty
 
     /// 
-    let getWinnerTeam gameDay = leadingTeams gameDay PositiveNum.numOne
+    let getWinnerTeam gameDay = leadingTeams PositiveNum.numOne gameDay
 
 
     /// 

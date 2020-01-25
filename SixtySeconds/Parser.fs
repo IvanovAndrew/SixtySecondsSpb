@@ -217,7 +217,7 @@ let parse sheetName (document : HtmlDocument) =
 
         teamsLines
         |> Seq.map parse
-        |> Seq.fold toResultOfSeq (Ok Seq.empty)
+        |> Result.OfSeq (Ok Seq.empty)
         |> Result.bind (fun seq -> seq |> Seq.fold (fun acc (team, answers) -> createGameDay acc team answers) gameDay)
     
     let gameDate() = 
@@ -309,17 +309,13 @@ let parseTotal document =
                     FirstResultColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "сум")) |> (+) 2
                 }
 
-            
-
-            let okList = Ok Seq.empty
-
             return!
                 sheetNode
                 |> HtmlNode.elements
                 |> (Seq.rev >> Seq.skip 2 >> Seq.rev) // except last
                 |> Seq.skip 2
                 |> Seq.map (parseLine parserOptions)
-                |> Seq.fold toResultOfSeq okList
+                |> Result.OfSeq (Ok Seq.empty)
                 |> Result.bind SeasonTable.ofSeq
         }
     seasonRating
