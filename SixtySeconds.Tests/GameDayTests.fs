@@ -200,16 +200,13 @@ module GameDayPropertiesTests =
         
         let existingTeam = gameDay |> GameDay.teams |> Seq.head
         
-        try 
+        let actual = 
             gameDay
             |> GameDay.withTeam existingTeam (gameDay.Answers |> Map.find existingTeam)
-            |> ignore
-            false
-        with
-            | :? ArgumentException as ex ->
-                
-                String.containsSubstring "is already added" ex.Message 
-            | _ -> false
+            
+        match actual with
+        | Ok data -> false
+        | Error message -> String.containsSubstring "is already added" message 
             
         
     [<Property(QuietOnSuccess = true)>]
@@ -229,16 +226,9 @@ module GameDayPropertiesTests =
             let customTeam = {ID = PositiveNum.numOne; Name = okValueOrThrow <| NoEmptyString.ofString "Test team"}
             let answers = Array.init answersLength (fun _ -> true) |> Answers.ofBoolArray
             
-            try 
-                let _ =
-                    gameDay
-                    |> GameDay.withTeam customTeam answers
-                false
-            with
-                | :? ArgumentException as ex ->
-                    
-                    String.containsSubstring "answers" ex.Message
-                | _ -> false
+            match gameDay |> GameDay.withTeam customTeam answers with
+            | Ok _ -> false
+            | Error message -> String.containsSubstring "Questions count" message
                 
         (precondition num1 num2) ==> lazy(property num1 num2)
         
