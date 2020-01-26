@@ -1,7 +1,6 @@
 ﻿open Config
 open Domain 
 open Utils
-open SpreadsheetService
 open GoogleChartService
 open PositiveNum
 open SpreadsheetWriter
@@ -35,7 +34,7 @@ let teamGameDay gameDay team =
         Distance = allQuestions |> Seq.map (GameDay.getDistanceFromTheFirstPlace gameDay team)
     }
 
-let showGraphic data teams gameDay vAxis = 
+let showGraphic data (teams : Team seq) gameDay vAxis = 
     
     let graphicData = 
         data 
@@ -49,7 +48,7 @@ let showGraphic data teams gameDay vAxis =
         {
             HorizonalAxis = {Direction = Direction.Forward; Label = "Вопрос"; Maximum = hMax}
             VerticalAxis = vAxis
-            Title = sprintf "Открытая Лига \"60 секунд\" %s" <| gameDay.Day.ToShortDateString()
+            Title = sprintf "%s %s" <| NoEmptyString.value gameDay.Tournament <| NoEmptyString.value gameDay.Name
         }
 
     GoogleChart.showData graphicData labels <| ChartType.Line options
@@ -100,7 +99,7 @@ let showTotalTable data topN =
 
     let columns = 
             
-        let toColumnFormat table = 
+        let toColumnFormat (table : (Team * _) seq )= 
             table 
             |> Seq.map (fun (team, points) -> team.Name |> NoEmptyString.value, points)
 

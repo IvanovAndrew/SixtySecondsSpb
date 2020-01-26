@@ -118,18 +118,20 @@ let parse sheetName (document : HtmlDocument) =
     let sum = "сум"
     let firstAnswer = "1"
     let rightAnswer = "1"
+    
+    let getSheetTitle() =
+        
+        document.Elements()
+        |> Seq.head
+        |> HtmlNode.descendants
+        |> Seq.item 2
+        |> HtmlNode.innerText
 
-    let getYear() = 
-        let title = 
-            
-            document.Elements()
-            |> Seq.head
-            |> HtmlNode.descendants
-            |> Seq.item 2
-            |> HtmlNode.innerText
-
-        let yearString = Regex.Match(title, "\d{4}|\d{4}\\\d{4}")
-        yearString.Value |> int
+    let getTournamentName() =
+        
+        getSheetTitle()
+        |> String.replace "Таблица " ""
+        |> NoEmptyString.ofString
 
     let parserOptions (sheetNode : HtmlNode) = 
         
@@ -220,30 +222,20 @@ let parse sheetName (document : HtmlDocument) =
         |> Result.OfSeq (Ok Seq.empty)
         |> Result.bind (fun seq -> seq |> Seq.fold (fun acc (team, answers) -> createGameDay acc team answers) gameDay)
     
-    let gameDate() = 
-        let dateString = Regex.Match(sheetName, "(\d{1,2})\.(\d{1,2})")
-        let day = dateString.Groups.[1].Value |> int
-        let month = dateString.Groups.[2].Value |> int
-
-        let year = getYear()
-
-        new DateTime(year, month, day)
-
-    
-
     let gameDay = 
 
         result{
             let! sheetNode = findSheetNode document sheetName
             let! sheetId = getSheetId document sheetName
-            let gameDate = gameDate()
+            let! tournament = getTournamentName()
+            let! gameName = sheetName |> NoEmptyString.ofString
 
             let options = parserOptions sheetNode
 
             let emptyGameDay = 
                 36 
                 |> PositiveNum.ofInt
-                |> Result.map (fun num -> {Day = gameDate; Answers = Map.empty; PackageSize = num})
+                |> Result.map (fun num -> {Tournament = tournament; Name = gameName; Answers = Map.empty; PackageSize = num})
 
             return! parseGameDay options sheetNode sheetId emptyGameDay
         }

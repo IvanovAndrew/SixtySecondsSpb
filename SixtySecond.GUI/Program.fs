@@ -7,15 +7,9 @@ open System.Windows
 open Elmish
 open Elmish.WPF
 
-open Domain
 open SixtySeconds.Views
 
 open Utils
-open Utils.PositiveNum
-open SixtySeconds.Views.Properties
-
-open SeasonTableApp
-open GameDayApp
 
 let validateGameDay (s : string) = 
     if Regex.IsMatch(s, @"^\d{1,2}\.\d{1,2}(.\d{4})?") 

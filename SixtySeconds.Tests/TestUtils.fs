@@ -77,7 +77,8 @@ module FsCheckUtils =
                     |> Gen.sample teamsCount |> List.ofArray
                 
                 return {
-                    Day = System.DateTime.Now
+                    Tournament = "Generated tournament" |> NoEmptyString.ofString |> okValueOrThrow
+                    Name = System.DateTime.Now.ToString() |> NoEmptyString.ofString |> okValueOrThrow
                     Answers =
                         allAnswers
                         |> List.zip teams

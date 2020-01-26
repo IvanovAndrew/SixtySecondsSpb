@@ -1,3 +1,5 @@
 /packages/*
 **/bin/
 */obj/*
+/.idea/.idea.SixtySeconds/.idea/*
+/.vs/*

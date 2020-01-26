@@ -62,7 +62,8 @@ module Answers =
 
 type GameDay = 
     {
-        Day : DateTime
+        Tournament : NoEmptyString
+        Name : NoEmptyString
         Answers : Map<Team, Answers>
         PackageSize : PositiveNum
     }

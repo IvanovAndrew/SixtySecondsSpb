@@ -7,6 +7,7 @@ open NUnit.Framework
 open FsUnit
 open FsCheck
 open FsCheck.NUnit
+open Utils
 
 
 
@@ -32,7 +33,8 @@ module GameDayExampleTests =
     
     let createEmptyGameDay questionsCount =
         {
-            Day = DateTime.Now
+            Tournament = "Unit test tournament" |> NoEmptyString.ofString |> Utils.okValueOrThrow
+            Name = DateTime.Now.ToString() |> NoEmptyString.ofString |> Utils.okValueOrThrow
             Answers = Map.empty
             PackageSize = questionsCount |> PositiveNum.ofInt |> Utils.okValueOrThrow
         }
@@ -218,8 +220,9 @@ module GameDayPropertiesTests =
             
             let gameDay =  
                 {
-                    Day = DateTime.Now;
-                    Answers = Map.empty;
+                    Tournament = "Generated tournament" |> NoEmptyString.ofString |> okValueOrThrow
+                    Name = DateTime.Now.ToString() |> NoEmptyString.ofString |> okValueOrThrow
+                    Answers = Map.empty
                     PackageSize = questionsCount |> PositiveNum.ofInt |> okValueOrThrow
                 }
                 
