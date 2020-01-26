@@ -69,30 +69,52 @@
         <StackPanel Orientation="Horizontal">
             <TextBlock Text="SpreadsheetID" Width="100" Style="{StaticResource TextBlock}"/>
             <TextBox Text="{Binding SpreadsheetID, UpdateSourceTrigger=PropertyChanged}" Width="200" Style="{StaticResource TextBox}"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal">
             <TextBlock Text="Sheet" Width="100" Style="{StaticResource TextBlock}"/>
             <TextBox Text="{Binding SheetName, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
         </StackPanel>
         <StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Team answered column" Width="100" Style="{StaticResource TextBlock}"/>
-                <TextBox Text="{Binding TeamAnsweredColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Right Answers column" Width="100" Style="{StaticResource TextBlock}"/>
-                <TextBox Text="{Binding RightAnswersColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Places column" Width="100" Style="{StaticResource TextBlock}"/>
-                <TextBox Text="{Binding PlacesColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Distance column" Width="100" Style="{StaticResource TextBlock}"/>
-                <TextBox Text="{Binding DistanceColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="First Question Row" Width="100" Style="{StaticResource TextBlock}"/>
-                <TextBox Text="{Binding FirstQuestionColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                
+                <TextBlock Text="Rows" Style="{StaticResource TextBlock}" Grid.Row="0" Grid.Column="0"/>
+                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="0">
+                    <TextBlock Text="First Question" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding FirstQuestionColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+                
+                <TextBlock Text="Columns" Style="{StaticResource TextBlock}" Grid.Row="0" Grid.Column="1"/>
+                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1">
+                    <TextBlock Text="Team answered" Width="100" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding TeamAnsweredColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1">
+                    <TextBlock Text="Right Answers" Width="100" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding RightAnswersColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1">
+                    <TextBlock Text="Places" Width="100" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding PlacesColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Grid.Row="4" Grid.Column="1">
+                    <TextBlock Text="Distance" Width="100" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding DistanceColumn, UpdateSourceTrigger=PropertyChanged}" Width="100" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+            </Grid>
+            
+            
+            
                 <Button Command="{Binding WriteToSpreadsheet}" Content="Write" Margin="0 5 10 5" Width="75" VerticalAlignment="Center" />
                 <TextBlock Foreground="Red"
                     Text="{Binding StatusMessage}" 

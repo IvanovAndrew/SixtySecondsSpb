@@ -55,6 +55,7 @@ let write sheetOptions spreadsheetId sheetName data =
                 // пишем отставание
                 (sheetOptions.Distance, data.Distance |> Seq.map string |> Array.ofSeq)
             ]
+            |> List.filter(fun (column, _) -> not <| String.IsNullOrEmpty column)
             |> List.map (fun (column, data) -> createValueRange column data)
             |> List.map update
             |> Async.Parallel
