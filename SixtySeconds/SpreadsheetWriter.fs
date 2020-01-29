@@ -23,6 +23,20 @@ type DataToWrite =
         Places : Place seq
         Distance : int<RightAnswer> seq
     }
+    
+module DataToWrite =
+    
+    let fromGameDay gameDay team = 
+        let allQuestions = 
+            PositiveNum.createNaturalRange gameDay.PackageSize
+
+        {
+            TeamAnswers = allQuestions |> Seq.map (GameDay.getAnswer gameDay team)
+            RightAnswersOn = allQuestions |> Seq.map (GameDay.rightAnswersOnQuestion gameDay)
+            Places = allQuestions |> Seq.map (GameDay.getPlaceAfterQuestion gameDay team)
+            Distance = allQuestions |> Seq.map (GameDay.getDistanceFromTheFirstPlace gameDay team)
+        }
+        
 
 let write sheetOptions spreadsheetId sheetName data = 
     

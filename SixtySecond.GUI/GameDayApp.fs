@@ -99,7 +99,7 @@ let writeToSpreadSheetButtonAvailable window =
             match teamOption with
             | Some team -> 
                 team
-                |> Program.teamGameDay window.GameDay 
+                |> DataToWrite.fromGameDay window.GameDay 
                 |> Ok
             | None -> Error (sprintf "Team with ID %d not found" <| PositiveNum.value teamId) 
     }
@@ -166,12 +166,12 @@ let showChart chartType gameDay =
     | Answers options ->
         options
         |> teamsToShow
-        |> Program.showPointsQuestionByQuestion gameDay
+        |> Chart.showPointsQuestionByQuestion gameDay
         
     | Places options ->
         options
         |> teamsToShow
-        |> Program.showPlacesQuestionByQuestion gameDay
+        |> Chart.showPlacesQuestionByQuestion gameDay
         
     
     
