@@ -9,8 +9,7 @@ open SpreadsheetWriter
 type Model = 
     {
         GameDay : GameDay
-        // Think about name
-        TeamIds : string
+        ChartTeamIds : string
         BestTeams : string
         ChartsErrorStatus : string option
         // Think about name
@@ -26,6 +25,11 @@ type ShowChartsInput =
     | BestTeamsOnly of PositiveNum
     | CustomTeamsAndBestTeams of teams : Team list * bestTeams : PositiveNum
     
+type ChartType =
+    | Answers of ShowChartsInput
+    | Places of ShowChartsInput
+    
+// Move to Settings
 let defaultSheetOptions = 
         {
             FirstQuestion = 3
@@ -38,7 +42,7 @@ let defaultSheetOptions =
 let init gameDay =
     {
         GameDay = gameDay
-        TeamIds = ""
+        ChartTeamIds = ""
         BestTeams = ""
         ChartsErrorStatus = None
         SpreadSheetId = "" 
@@ -67,7 +71,6 @@ let validateTeamId gameDay teamIdString =
     teamIdString
     |> PositiveNum.ofString
     |> Result.bind findTeamById
-    
 
 let rightAnswersColumnChanged column model = 
         {model with SheetOptions = {model.SheetOptions with Answered = column}}
@@ -129,12 +132,25 @@ let validateBestTeams input =
         |> PositiveNum.ofString
         |> Result.map (fun num -> Some num)
     
+let showChartButtonAvailable model =
+    result {
+        let! customTeams = validateTeamIds model.GameDay model.ChartTeamIds
+        let! bestTeams = validateBestTeams model.BestTeams
 
+        let message = 
+            match bestTeams, customTeams with
+            | Some num, [] -> Ok <| BestTeamsOnly num
+            | Some num, x -> Ok <| CustomTeamsAndBestTeams(x, num)
+            | None, [] -> Error "Team ID or best teams count required"
+            | None, x -> Ok <| CustomTeamsOnly x
+
+        return! message 
+    }
         
     
-let showCharts input gameDay =
+let showChart chartType gameDay =
     
-    let teamsToShow =
+    let teamsToShow input =
         
         match input with
         | CustomTeamsOnly customTeams -> customTeams |> Seq.ofList
@@ -146,14 +162,24 @@ let showCharts input gameDay =
             |> Seq.append customTeams
             |> Seq.distinct
         
+    match chartType with
+    | Answers options ->
+        options
+        |> teamsToShow
+        |> Program.showPointsQuestionByQuestion gameDay
+        
+    | Places options ->
+        options
+        |> teamsToShow
+        |> Program.showPlacesQuestionByQuestion gameDay
+        
     
-    Program.showPointsQuestionByQuestion gameDay teamsToShow
-    Program.showPlacesQuestionByQuestion gameDay teamsToShow
+    
 
 type Message =
     | CustomTeamsEntered of string
     | BestTeamsCountEntered of string
-    | ShowCharts of ShowChartsInput 
+    | ShowChart of ChartType  
     | GoogleSpreadsheetCloseRequested
     
     | TeamIdEntered of team : string
@@ -169,12 +195,12 @@ type Message =
 
 let update message model = 
     match message with
-    | CustomTeamsEntered customTeams -> {model with TeamIds = customTeams} |> withClearChartErrorMessage
+    | CustomTeamsEntered customTeams -> {model with ChartTeamIds = customTeams} |> withClearChartErrorMessage
     | BestTeamsCountEntered bestTeamsCount -> updateBestTeams bestTeamsCount model |> withClearChartErrorMessage
-    | ShowCharts input -> 
+    | ShowChart input -> 
         
         model.GameDay
-        |> showCharts input
+        |> showChart input
 
         model
 
@@ -219,49 +245,60 @@ let update message model =
 
 let bindings (wrap : Message -> 'a) = 
     (fun () -> [
-        "TeamIds" |> Binding.twoWay ((fun m -> m.TeamIds), CustomTeamsEntered >> wrap)
-        "BestTeams" |> Binding.twoWay((fun m -> m.BestTeams), BestTeamsCountEntered >> wrap)
+        "ShowChartTitle" |> Binding.oneWay (fun m -> sprintf "Show chart for game %s" <| NoEmptyString.value m.GameDay.Name)
+        "TeamIds" |> Binding.twoWayValidate
+                    (
+                        (fun m -> m.ChartTeamIds),
+                        CustomTeamsEntered >> wrap,
+                        (fun m -> validateTeamIds m.GameDay m.ChartTeamIds)
+                    )
+        "BestTeams" |> Binding.twoWayValidate
+                    (
+                        (fun m -> m.BestTeams),
+                        BestTeamsCountEntered >> wrap,
+                        (fun m -> validateBestTeams m.BestTeams)
+                    )
         
-        "ShowCharts" |> Binding.cmdIf
-                (fun model ->
-                    
-                     let message = 
-                         result {
-                            let! customTeams = validateTeamIds model.GameDay model.TeamIds
-                            let! bestTeams = validateBestTeams model.BestTeams
-                            
-                            let message = 
-                                match bestTeams, customTeams with
-                                | Some num, [] -> Ok <| BestTeamsOnly num
-                                | Some num, x -> Ok <| CustomTeamsAndBestTeams(x, num)
-                                | None, [] -> Error "Team ID or best teams count required"
-                                | None, x -> Ok <| CustomTeamsOnly x
-                            
-                            return! message 
-                            }
-                     message
-                     |> Result.map (fun data -> ShowCharts(data) |> wrap)
-                 )
+        "ShowPlacesCharts" |> Binding.cmdIf
+                    (fun model ->
+                         model
+                         |> showChartButtonAvailable
+                         |> Result.map (fun data -> data |> Places |> ShowChart |> wrap)
+                     )
+        "ShowAnswersCharts" |> Binding.cmdIf
+                    (fun model ->
+                         model
+                         |> showChartButtonAvailable
+                         |> Result.map (fun data -> data |> Answers |> ShowChart |> wrap)
+                     )
         "ChartsErrorMessageVisibility" |> Binding.oneWay(fun model -> model.ChartsErrorStatus |> Option.isSome)
         "ChartsErrorMessage" |> Binding.oneWay(fun model -> model.ChartsErrorStatus |> Option.defaultValue "")
                 
-        
-        "TeamID" |> Binding.twoWayValidate(
-            (fun m -> m.TeamId),
-            TeamIdEntered >> wrap,
-            (fun m -> validateTeamId m.GameDay m.TeamId)
-            )
+        "WriteToSpreadsheetTitle" |> Binding.oneWay(fun model -> model.GameDay.Name |> NoEmptyString.value |> sprintf "Write game %s to google spreadsheet")
+        "TeamID" |> Binding.twoWayValidate
+                    (
+                        (fun m -> m.TeamId),
+                        TeamIdEntered >> wrap,
+                        (fun m ->
+                            let validate s =
+                                if String.isEmpty s then Ok()
+                                else
+                                    s
+                                    |> validateTeamId m.GameDay
+                                    |> Result.map (fun _ -> ()) 
+                                    
+                            validate m.TeamId
+                        )
+                    )
                 
-        "SpreadsheetID" |> Binding.twoWayValidate(
+        "SpreadsheetID" |> Binding.twoWay(
             (fun m -> m.SpreadSheetId),
-            SpreadsheetIdEntered >> wrap,
-            (fun m -> m.SpreadSheetId |> NoEmptyString.ofString)
+            SpreadsheetIdEntered >> wrap
             )
 
-        "SheetName" |> Binding.twoWayValidate(
+        "SheetName" |> Binding.twoWay(
             (fun m -> m.SheetName),
-            SpreadsheetNameEntered >> wrap,
-            (fun m -> m.SheetName |> NoEmptyString.ofString)
+            SpreadsheetNameEntered >> wrap
             )
 
         "TeamAnsweredColumn" |> Binding.twoWay(
