@@ -16,4 +16,4 @@ jobs:
     - name: Build with dotnet
       run: dotnet build --configuration Release
     - name: Run tests
-      run: dotnet test **/*.Tests.fsproj
+      run: dotnet test SixtySeconds.Tests/SixtySeconds.Tests.fsproj
