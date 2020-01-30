@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SixtySeconds.Views"
         mc:Ignorable="d"
-        Title="SeasonTableWindow" Height="250" Width="500">
+        Title="SeasonTableWindow" Height="450" Width="500">
     <StackPanel>
         <StackPanel Orientation="Horizontal">
             <TextBlock Text="Games to count" Margin="10 10 10 10" Width="100" TextAlignment="Center" />
@@ -13,7 +13,7 @@
             <Button Command="{Binding ShowSeasonTable}" Content="Season table" Margin="0 5 10 5" Width="75"  />
         </StackPanel>
         
-        <ListView ItemsSource="{Binding FilteredSeasonTable}">
+        <ListView ItemsSource="{Binding FilteredSeasonTable}" Height="400">
             <ListView.View>
                 <GridView AllowsColumnReorder="True">
                     <GridViewColumn Header="№" Width="25"
