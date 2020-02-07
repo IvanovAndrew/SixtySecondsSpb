@@ -113,9 +113,10 @@
                 </StackPanel>
             </StackPanel>
             <Button Command="{Binding WriteToSpreadsheet}" Content="Write" Style="{StaticResource Button}" />
-            <TextBlock Foreground="Red"
+            <TextBlock
                 Text="{Binding StatusMessage}" 
-                Visibility="{Binding ErrorMessageVisibility}" 
+                Visibility="{Binding ErrorMessageVisibility}"
+                Foreground="Red"
                 Style="{StaticResource TextBlock}"/>
             <TextBlock 
                 Text="{Binding StatusMessage}" 

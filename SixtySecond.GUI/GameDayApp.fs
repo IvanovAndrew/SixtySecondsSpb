@@ -1,5 +1,7 @@
 ﻿module GameDayApp
 
+open System.Windows
+open System.Windows
 open Domain
 open Utils
 open Elmish.WPF
@@ -173,7 +175,17 @@ let showChart chartType gameDay =
         |> teamsToShow
         |> Chart.showPlacesQuestionByQuestion gameDay
         
-    
+        
+let showErrorMessage status =
+
+    status
+    |> Option.map (fun res -> match res with Ok _ -> Visibility.Hidden | Error _ -> Visibility.Visible)
+    |> Option.defaultValue Visibility.Hidden
+
+let showSuccessMessage status =
+    status
+    |> Option.map (fun res -> match res with Ok _ -> Visibility.Visible | Error _ -> Visibility.Hidden)
+    |> Option.defaultValue Visibility.Hidden
     
 
 type Message =
@@ -328,8 +340,8 @@ let bindings (wrap : Message -> 'a) =
                                 model 
                                 |> writeToSpreadSheetButtonAvailable 
                                 |> Result.map (fun data -> wrap(WriteToSpreadsheet data)))
-        "ErrorMessageVisibility" |> Binding.oneWay (fun m -> m.Status |> Option.map (function Error e -> true | _ -> false) |> Option.defaultValue false)
-        "SuccessMessageVisibility" |> Binding.oneWay (fun m -> m.Status |> Option.map (function Ok _ -> true | _ -> false) |> Option.defaultValue false)
+        "ErrorMessageVisibility" |> Binding.oneWay (fun m -> m.Status |> showErrorMessage )
+        "SuccessMessageVisibility" |> Binding.oneWay (fun m -> m.Status |> showSuccessMessage)
         "StatusMessage" |> Binding.oneWay(fun model -> 
                                                 model.Status 
                                                 |> Option.map(function Ok m -> m | Error e -> e) 
