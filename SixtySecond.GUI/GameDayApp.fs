@@ -1,7 +1,6 @@
 ﻿module GameDayApp
 
 open System.Windows
-open System.Windows
 open Domain
 open Utils
 open Elmish.WPF
@@ -14,7 +13,6 @@ type Model =
         ChartTeamIds : string
         BestTeams : string
         ChartsErrorStatus : string option
-        // Think about name
         TeamId : string
         SpreadSheetId : string
         SheetName : string
@@ -31,7 +29,7 @@ type ChartType =
     | Answers of ShowChartsInput
     | Places of ShowChartsInput
     
-// Move to Settings
+// TODO Move to Settings
 let defaultSheetOptions = 
         {
             FirstQuestion = 3
@@ -179,13 +177,13 @@ let showChart chartType gameDay =
 let showErrorMessage status =
 
     status
-    |> Option.map (fun res -> match res with Ok _ -> Visibility.Hidden | Error _ -> Visibility.Visible)
-    |> Option.defaultValue Visibility.Hidden
+    |> Option.map (fun res -> match res with Ok _ -> Visibility.Collapsed | Error _ -> Visibility.Visible)
+    |> Option.defaultValue Visibility.Collapsed
 
 let showSuccessMessage status =
     status
-    |> Option.map (fun res -> match res with Ok _ -> Visibility.Visible | Error _ -> Visibility.Hidden)
-    |> Option.defaultValue Visibility.Hidden
+    |> Option.map (fun res -> match res with Ok _ -> Visibility.Visible | Error _ -> Visibility.Collapsed)
+    |> Option.defaultValue Visibility.Collapsed
     
 
 type Message =
