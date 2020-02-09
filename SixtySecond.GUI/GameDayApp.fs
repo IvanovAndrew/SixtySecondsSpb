@@ -4,6 +4,7 @@ open System.Windows
 open Domain
 open Utils
 open Elmish.WPF
+open SixtySecond.GUI.Settings
 open Utils.PositiveNum
 open SpreadsheetWriter
 
@@ -29,14 +30,13 @@ type ChartType =
     | Answers of ShowChartsInput
     | Places of ShowChartsInput
     
-// TODO Move to Settings
 let defaultSheetOptions = 
         {
-            FirstQuestion = 3
-            TeamAnswered = "E"
-            Answered = "F"
-            Place = "G"
-            Distance = "H"
+            FirstQuestion = Config.load FirstQuestion |> int
+            TeamAnswered = Config.load TeamAnswered
+            Answered = Config.load RightAnswers
+            Place = Config.load Place
+            Distance = Config.load Distance
         }
         
 let init gameDay =
@@ -45,7 +45,7 @@ let init gameDay =
         ChartTeamIds = ""
         BestTeams = ""
         ChartsErrorStatus = None
-        SpreadSheetId = "" 
+        SpreadSheetId = Config.load SpreadsheetUrl
         SheetName = ""
         TeamId = ""
         SheetOptions = defaultSheetOptions
@@ -184,6 +184,24 @@ let showSuccessMessage status =
     status
     |> Option.map (fun res -> match res with Ok _ -> Visibility.Visible | Error _ -> Visibility.Collapsed)
     |> Option.defaultValue Visibility.Collapsed
+
+let saveOptions spreadsheet (options : SheetOptions) =
+    
+    let saveIfNotNull setting value =
+        if value |> String.isEmpty |> not then Config.save setting value
+        
+    Config.save SpreadsheetUrl spreadsheet
+    Config.save FirstQuestion options.FirstQuestion
+    
+    [
+        TeamAnswered, options.TeamAnswered 
+        RightAnswers, options.Answered 
+        Place, options.Place 
+        Distance, options.Distance 
+    ]  
+    |> List.iter (fun (setting, value) -> saveIfNotNull setting value) 
+    
+   
     
 
 type Message =
@@ -247,6 +265,13 @@ let update message model =
             result 
             |> Result.map (fun _ -> "Data is written")
             |> Some
+            
+        match status with
+        | Some result ->
+            match result with 
+            | Ok _ -> saveOptions model.SpreadSheetId model.SheetOptions
+            | Error _ -> ()
+        | None -> ()
 
         {model with Status = status}
     

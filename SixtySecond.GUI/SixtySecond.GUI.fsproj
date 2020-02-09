@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Settings.fs" />
     <Compile Include="SeasonTableApp.fs" />
     <Compile Include="GameDayApp.fs" />
     <Compile Include="Program.fs" />

@@ -5,18 +5,12 @@
     <Compile Update="GameDayWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Update="GoogleSpreadsheetWindow.xaml.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Update="SeasonTableWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
     <Page Update="GameDayWindow.xaml">
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Update="GoogleSpreadsheetWindow.xaml">
       <SubType>Designer</SubType>
     </Page>
     <Page Update="MainWindow.xaml">

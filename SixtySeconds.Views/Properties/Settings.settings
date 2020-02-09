@@ -2,8 +2,26 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="SixtySeconds.Views.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="Url" Type="System.String" Scope="Application">
+    <Setting Name="TableUrl" Type="System.String" Scope="User">
       <Value Profile="(Default)">https://docs.google.com/spreadsheets/d/e/2PACX-1vQB1GBzm682lz_bTuoBulttMGaSU4DmzzUJWMlTQll4KouQE83Zs4zJphTXkOULViTDcqmPnE8HLXB2/pubhtml</Value>
+    </Setting>
+    <Setting Name="SpreadsheetUrl" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="FirstQuestion" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="TeamAnswered" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="RightAnswers" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="Place" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="Distance" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
     </Setting>
   </Settings>
 </SettingsFile>

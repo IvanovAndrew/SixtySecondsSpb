@@ -11,10 +11,5 @@ namespace SixtySeconds.Views
         {
             InitializeComponent();
         }
-
-        private void OnClosed(object sender, object args)
-        {
-            Properties.Settings.Default.Save();
-        }
     }
 }

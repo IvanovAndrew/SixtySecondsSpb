@@ -7,6 +7,7 @@ open System.Windows
 open Elmish
 open Elmish.WPF
 
+open SixtySecond.GUI.Settings
 open SixtySeconds.Views
 
 open Utils
@@ -32,7 +33,7 @@ type Model =
 let init() =
 
     { 
-        TableUrl = SixtySeconds.Views.Properties.Settings.Default.["Url"] |> string
+        TableUrl = Config.load TableUrl 
         Day = sprintf "%d.%02d" DateTime.Today.Day DateTime.Today.Month
         ErrorMessage = None
 
@@ -76,7 +77,10 @@ let update msg m =
             
             
         match seasonWindow with 
-        | Ok (window : SeasonTableApp.Model)-> {m with SeasonTableWin = Some window}
+        | Ok (window : SeasonTableApp.Model)->
+            
+            Config.save TableUrl m.TableUrl
+            {m with SeasonTableWin = Some window}
         | Error e -> 
             {m with ErrorMessage = Some e}
 

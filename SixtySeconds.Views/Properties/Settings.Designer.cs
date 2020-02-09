@@ -23,17 +23,88 @@ namespace SixtySeconds.Views.Properties {
             }
         }
         
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("https://docs.google.com/spreadsheets/d/e/2PACX-1vQB1GBzm682lz_bTuoBulttMGaSU4Dmzz" +
             "UJWMlTQll4KouQE83Zs4zJphTXkOULViTDcqmPnE8HLXB2/pubhtml")]
-        public string Url {
+        public string TableUrl {
             get {
-                return ((string)(this["Url"]));
+                return ((string)(this["TableUrl"]));
             }
-            set
-            {
-                this["Url"] = value;
+            set {
+                this["TableUrl"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string SpreadsheetUrl {
+            get {
+                return ((string)(this["SpreadsheetUrl"]));
+            }
+            set {
+                this["SpreadsheetUrl"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int FirstQuestion {
+            get {
+                return ((int)(this["FirstQuestion"]));
+            }
+            set {
+                this["FirstQuestion"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string TeamAnswered {
+            get {
+                return ((string)(this["TeamAnswered"]));
+            }
+            set {
+                this["TeamAnswered"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string RightAnswers {
+            get {
+                return ((string)(this["RightAnswers"]));
+            }
+            set {
+                this["RightAnswers"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string Place {
+            get {
+                return ((string)(this["Place"]));
+            }
+            set {
+                this["Place"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string Distance {
+            get {
+                return ((string)(this["Distance"]));
+            }
+            set {
+                this["Distance"] = value;
             }
         }
     }
