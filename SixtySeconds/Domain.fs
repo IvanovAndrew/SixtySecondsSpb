@@ -1,13 +1,25 @@
 ﻿module Domain
 
 open System
+open System
+open System.Numerics
+open System.Text
 open Utils
 open PositiveNum
+
 
 type Team = 
     {
         ID : PositiveNum
         Name : NoEmptyString
+    }
+    
+let createTeam id name =
+    result {
+        let! positiveId = PositiveNum.ofInt id
+        let! noEmptyName = NoEmptyString.ofString name
+        
+        return {ID = positiveId; Name = noEmptyName;}
     }
 
 type Place = 
@@ -31,6 +43,7 @@ module Converter =
     let rightAnswerFromInt num = num * 1<RightAnswer>
     let pointFromDecimal num = num * 1m<Point>
     let toInt (num : int<_>) = int num
+    let toDecimal (num : decimal<_>) = decimal num
 
 module Answer =
     
@@ -262,3 +275,124 @@ module SeasonTable =
         |> Map.toSeq
         |> Seq.map (fun (team, results) -> team, topResults results)
         |> Seq.sortByDescending snd
+        
+        
+        
+type RoundOf12MatchUp = Team * Team
+
+type QuarterFinalTeam =
+    | RoundOf12Winner of RoundOf12MatchUp
+    | Wildcard
+
+type QuarterFinalMatchUp = QuarterFinalTeam * QuarterFinalTeam
+
+type QuarterFinalWinner = QuarterFinalMatchUp
+
+type SemifinalMatchUp = QuarterFinalWinner * QuarterFinalWinner
+
+type SemifinalWinner = SemifinalMatchUp
+type Final = SemifinalMatchUp * SemifinalMatchUp
+
+module Playoff =
+    
+    let private splitByTwo s =
+        
+        let groupCount =
+            let itemsCount = s |> Seq.length
+            itemsCount / 2
+        
+        s |> Seq.take groupCount,
+        s |> Seq.skip groupCount |> Seq.take groupCount
+        
+    
+    let roundOf12Pairs (best12Teams : Team seq) =
+            
+            let top6, others = splitByTwo best12Teams 
+                
+            others
+            |> Seq.rev
+            |> Seq.zip top6
+            |> Seq.map (fun (firstTeam, secondTeam) -> RoundOf12MatchUp(firstTeam, secondTeam)) 
+            
+            
+    let quarterFinalPairs roundOf12Winners =
+        
+        let priorityFirst, prioritySecond =
+            roundOf12Winners |> Seq.head, roundOf12Winners |> Seq.skip 1 |> Seq.head
+            
+        let firstHalf, secondHalf =
+            roundOf12Winners |> Seq.skip 2 |> splitByTwo
+            
+        secondHalf
+        |> Seq.rev
+        |> Seq.zip firstHalf
+        |> Seq.map (fun (one, two) -> QuarterFinalMatchUp(one, two)) 
+        |> Seq.append
+            [
+                QuarterFinalMatchUp(priorityFirst, Wildcard);
+                QuarterFinalMatchUp(prioritySecond, Wildcard)
+            ]
+            
+    let semifinalPairs quarterFinalWinners =
+        
+        let firstGroup, secondGroup =
+            quarterFinalWinners |> splitByTwo
+            
+        secondGroup
+        |> Seq.rev
+        |> Seq.zip firstGroup
+        |> Seq.map (fun (firstTeam, secondTeam) -> SemifinalMatchUp(firstTeam, secondTeam))
+        
+    let final semifinalWinners = Final(Seq.head semifinalWinners, Seq.head semifinalWinners)
+        
+        
+    
+    let playOff best12Teams =
+        
+        best12Teams
+        
+        |> roundOf12Pairs 
+        |> Seq.map RoundOf12Winner
+        
+        |> quarterFinalPairs
+        |> Seq.map QuarterFinalWinner
+        
+        |> semifinalPairs
+        |> Seq.map SemifinalWinner
+        
+        |> final
+        
+    let playoffString best12Teams =
+        
+        let sb = StringBuilder()
+        sb += sprintf "Round of 12%s" Environment.NewLine
+               
+        let teamName (team : Team) = team.Name |>  NoEmptyString.value
+        
+        let roundOf12Pairs = 
+            best12Teams
+            |> roundOf12Pairs
+            
+        let printRoundOf12Pair num (firstTeam, secondTeam) = 
+            let newPair = sprintf "R%d. %s vs %s%s" <| num + 1 <| teamName firstTeam <| teamName secondTeam <| Environment.NewLine 
+            sb += newPair
+            
+        roundOf12Pairs
+        |> Seq.iteri printRoundOf12Pair
+        
+        sb
+        ++ Environment.NewLine
+        ++ "Quarterfinal" ++ Environment.NewLine
+        ++ "Q1. Winner (R1) vs wildcard2" ++ Environment.NewLine
+        ++ "Q2. Winner (R2) vs wildcard1" ++ Environment.NewLine
+        ++ "Q3. Winner (R3) vs Winner (R6)" ++ Environment.NewLine
+        ++ "Q4. Winner (R4) vs Winner (R5)" ++ Environment.NewLine
+        ++ Environment.NewLine
+        ++ "Semifinal" ++ Environment.NewLine
+        ++ "S1. Winner (Q1) vs Winner (Q4)" ++ Environment.NewLine
+        ++ "S2. Winner (Q2) vs Winner (Q3)" ++ Environment.NewLine
+        ++ Environment.NewLine
+        ++ "Final" ++ Environment.NewLine
+        ++ "Winner (S1) vs Winner (S2)" ++ Environment.NewLine
+        ++ Environment.NewLine
+        |> Out 

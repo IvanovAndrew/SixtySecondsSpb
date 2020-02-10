@@ -19,7 +19,6 @@ let validateGameDay (s : string) =
 
 let validateUrl = Url.create
 
-
 type Model =
     { 
         TableUrl : string
@@ -72,7 +71,7 @@ let update msg m =
                 return 
                     document
                     |> Result.bind Parser.parseTotal
-                    |> Result.map SeasonTableApp.initWindow
+                    |> Result.map SeasonTableApp.initModel
             } |> Async.RunSynchronously
             
             

@@ -1,5 +1,8 @@
 ﻿module Utils
 
+open System
+open System.Text
+
 let isInt (s : string) = 
     match System.Int32.TryParse(s) with 
     | (true, _) -> true
@@ -76,7 +79,10 @@ module String  =
     let containsSubstring (substring : string) (string : string) = string.Contains(substring)
 
     let startsWith (subString : string) (string : string) = string.StartsWith(subString)
+    
+        
 
+    
 
 type NoEmptyString = private NoEmptyString of string
     with
@@ -127,3 +133,22 @@ module Url =
         else Error "Input must be correct url"
 
     let value (Url url) = url
+   
+   
+// StringBuilder snippet from http://www.fssnip.net/by/title/Building-Strings
+let Out x = x.ToString()
+
+type Object with
+
+    member this.Out : string =
+        this |> Out
+
+// Too lazy to use foo.Append(bar).
+
+let (++) (left : System.Text.StringBuilder) (right : 't) : System.Text.StringBuilder =
+    left.Append right
+
+// Too lazy to use foo.Append(bar) |> ignore
+
+let (+=) (left : System.Text.StringBuilder) (right : 't) : unit =
+    left ++ right |> ignore

@@ -3,27 +3,46 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:SixtySeconds.Views"
         mc:Ignorable="d"
-        Title="SeasonTableWindow" Height="450" Width="500">
+        Title="SeasonTableWindow" Height="500" Width="650">
+    <Window.Resources>
+        <Style x:Key="Button" TargetType="Button">
+            <Style.Setters>
+                <Setter Property="Margin" Value="0 5 10 5"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Width" Value="100"/>
+            </Style.Setters>
+        </Style>
+    </Window.Resources>
     <StackPanel>
         <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Games to count" Margin="10 10 10 10" Width="100" TextAlignment="Center" />
+            <TextBlock Text="Games to count" Margin="10" Width="100" TextAlignment="Center" />
             <TextBox TextWrapping="Wrap" Text="{Binding GamesToCount, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Width="20" Margin="0 5 10 5"/>
-            <Button Command="{Binding ShowSeasonTable}" Content="Season table" Margin="0 5 10 5" Width="75"  />
+            <Button Command="{Binding ShowSeasonTable}" Content="Season table" Style="{StaticResource Button}" Width="75"  />
         </StackPanel>
         
-        <ListView ItemsSource="{Binding FilteredSeasonTable}" Height="400">
-            <ListView.View>
-                <GridView AllowsColumnReorder="True">
-                    <GridViewColumn Header="№" Width="25"
-                        DisplayMemberBinding="{Binding Place}" />
-                    <GridViewColumn Header="Name" Width="200"
-                        DisplayMemberBinding="{Binding TeamName}"/>
-                    <GridViewColumn Header="Rating" Width="50"
-                        DisplayMemberBinding="{Binding Rating}"/>
-                </GridView>
-            </ListView.View>
-        </ListView>
+        <StackPanel Orientation="Horizontal">
+            <StackPanel>
+                <ListView ItemsSource="{Binding FilteredSeasonTable}" Height="350" Width="325" Margin="10">
+                    <ListView.View>
+                        <GridView AllowsColumnReorder="True">
+                            <GridViewColumn Header="№" Width="25"
+                                            DisplayMemberBinding="{Binding Place}" />
+                            <GridViewColumn Header="Name" Width="200"
+                                            DisplayMemberBinding="{Binding TeamName}"/>
+                            <GridViewColumn Header="Rating" Width="50"
+                                            DisplayMemberBinding="{Binding Rating}"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Command="{Binding CopyToClipboard}" Content="Copy to clipboard" Style="{StaticResource Button}" HorizontalAlignment="Stretch" />
+                    <Button Command="{Binding ShowPlayOff}" Content="Show play-off" Style="{StaticResource Button}" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </StackPanel>
+            <StackPanel>
+                <TextBox Text="{Binding Playoff}" Margin="10" BorderThickness="0" Height="400" TextWrapping="Wrap" IsReadOnly="True" IsReadOnlyCaretVisible="True"/>
+            </StackPanel>
+        </StackPanel>
     </StackPanel>
 </Window>
