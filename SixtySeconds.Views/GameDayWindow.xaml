@@ -115,11 +115,13 @@
             <Button Command="{Binding WriteToSpreadsheet}" Content="Write" Style="{StaticResource Button}" />
             <TextBlock
                 Text="{Binding StatusMessage}" 
+                Width="250"
                 Visibility="{Binding ErrorMessageVisibility}"
                 Foreground="Red"
                 Style="{StaticResource TextBlock}"/>
             <TextBlock 
-                Text="{Binding StatusMessage}" 
+                Text="{Binding StatusMessage}"
+                Width="250"
                 Visibility="{Binding SuccessMessageVisibility}" 
                 Foreground="Green"
                 Style="{StaticResource TextBlock}"/>
