@@ -152,3 +152,30 @@ let (++) (left : System.Text.StringBuilder) (right : 't) : System.Text.StringBui
 
 let (+=) (left : System.Text.StringBuilder) (right : 't) : unit =
     left ++ right |> ignore
+    
+    
+let (|SeqEmpty|SeqOneItem|SeqMore|) (xs: 'a seq) = //'
+    if Seq.isEmpty xs then SeqEmpty
+    else
+        let tail = Seq.skip 1 xs
+        if Seq.isEmpty tail then SeqOneItem(Seq.head xs)
+        else SeqMore(Seq.head xs, tail)
+    
+
+module Seq =
+    let exceptLast seq =
+        
+        let rec imp acc s =
+        
+            match s with
+            // TODO maybe should throw exception?
+            | SeqEmpty -> Seq.empty
+            | SeqOneItem _ -> acc
+            | SeqMore (head, tail) ->
+                let newAcc =
+                    head
+                    |> Seq.singleton
+                    |> Seq.append acc   
+                imp newAcc tail
+            
+        imp Seq.empty seq

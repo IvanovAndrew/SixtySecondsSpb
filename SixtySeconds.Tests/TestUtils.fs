@@ -32,6 +32,15 @@ module FsCheckUtils =
             |> Gen.elements 
             |> Arb.fromGen
             |> Arb.convert (PositiveNum.ofInt >> okValueOrThrow) PositiveNum.value
+    
+    
+    type NonEmptySeq =
+        static member ValidSeq =
+            [1..10]
+            |> Gen.elements 
+            |> Gen.nonEmptyListOf
+            |> Gen.map Seq.ofList
+            |> Arb.fromGen
             
             
     type AnswersTypes =

@@ -10,6 +10,7 @@ open Elmish.WPF
 open SixtySecond.GUI.Settings
 open SixtySeconds.Views
 
+open Parser
 open Utils
 
 let validateGameDay (s : string) = 
@@ -70,7 +71,8 @@ let update msg m =
 
                 return 
                     document
-                    |> Result.bind Parser.parseTotal
+                    |> Result.mapError WebRequestError
+                    |> Result.bind (Parser.parseTotal >> Result.mapError ParsingError)
                     |> Result.map SeasonTableApp.initModel
             } |> Async.RunSynchronously
             
@@ -81,7 +83,7 @@ let update msg m =
             Config.save TableUrl m.TableUrl
             {m with SeasonTableWin = Some window}
         | Error e -> 
-            {m with ErrorMessage = Some e}
+            {m with ErrorMessage = e |> errorToString |> Some }
 
     | LoadGameDay(url, gameName) -> 
         
@@ -91,7 +93,10 @@ let update msg m =
                 
                 let! document = url |> Url.value |> Parser.asyncLoadDocument 
                 
-                return document |> Result.bind (Parser.parse gameName)
+                return
+                    document
+                    |> Result.mapError WebRequestError
+                    |> Result.bind (Parser.parse gameName >> Result.mapError ParsingError)
             } |> Async.RunSynchronously
             
         match gameDayResult with 
@@ -99,7 +104,7 @@ let update msg m =
             {m with
                 GameDayWindow = GameDayApp.init gameDay |> Some
             }
-        | Error e -> {m with ErrorMessage = Some e}
+        | Error e -> {m with ErrorMessage = e |> errorToString |> Some}
 
     | GameDayMessage message -> 
         {

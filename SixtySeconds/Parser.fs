@@ -1,12 +1,43 @@
 ﻿module Parser
 
-open System
-open System.Text.RegularExpressions
-
 open FSharp.Data
 
 open Utils
 open Domain
+
+type ParsingError =
+    | MissingSheetName
+    | MissingTournamentName
+    | MissingAnswersCount
+    | TeamParsingError of string
+    | SheetNotFound of string
+    | DuplicatedTeam of Team
+    | SeasonHasNotStarted
+    
+    
+type WebRequestError = 
+    | PageNotFound of string
+    | UnexpectedResponseBody 
+    
+type SixtySecondsError =
+    | ParsingError of ParsingError
+    | WebRequestError of WebRequestError
+    
+    
+let errorToString = function
+    | ParsingError error ->
+        match error with 
+        | MissingSheetName -> "Missing sheet name"
+        | MissingTournamentName -> "Missing tournament name"
+        | MissingAnswersCount -> "Missing answers count"
+        | TeamParsingError err -> sprintf "Can not parse team. %s" err
+        | SheetNotFound sheetName -> sprintf "Sheet %s not found" sheetName
+        | SeasonHasNotStarted -> "Season hasn't started yet"
+        | DuplicatedTeam team -> sprintf "Team %s is already added " <| NoEmptyString.value team.Name
+    | WebRequestError error ->
+        match error with
+        | PageNotFound url -> sprintf "Page %s not found" url
+        | UnexpectedResponseBody -> "Unexpected response body"
 
 let asyncLoadDocument url = 
     
@@ -15,15 +46,15 @@ let asyncLoadDocument url =
         let! response = Http.AsyncRequest(url, silentHttpErrors = true)
 
         let result = 
-            if response.StatusCode <> 200 then Error "Page not found"
-            else 
+            if response.StatusCode <> 200 then url |> PageNotFound |> Error
+            else
                 match response.Body with 
                 | HttpResponseBody.Text text -> 
                     text
                     |> String.replace "<style>@import url(https://fonts.googleapis.com/css?kit=o--8Et3j0xElSo4Jk-6CSN_pgL91BiSHK8etQbSopkk);</style>" "" 
                     |> HtmlDocument.Parse 
                     |> Ok
-                | _ -> Error "Unexpected response body"
+                | _ -> UnexpectedResponseBody |> Error 
 
         return result
     }
@@ -51,6 +82,11 @@ module HtmlNode =
     let descendants (node : HtmlNode) = node.Descendants()
     let attributes (node : HtmlNode) = node.Attributes()
     let attribute name (node : HtmlNode) = node.Attribute(name)
+    let hasAttribute attribute value (node : HtmlNode) = node.HasAttribute(attribute, value)
+    
+module HtmlDocument =
+    
+    let elements (document : HtmlDocument) = document.Elements()
 
 module Attribute = 
     
@@ -67,8 +103,7 @@ let private getSheetId (document : HtmlDocument) sheetName =
 
     let nodeOption = 
         children
-        |> Seq.filter (HtmlNode.innerText >> String.containsSubstring sheetName)
-        |> Seq.tryHead
+        |> Seq.tryFind (HtmlNode.innerText >> String.containsSubstring sheetName)
         
             
     match nodeOption with 
@@ -76,39 +111,44 @@ let private getSheetId (document : HtmlDocument) sheetName =
         node
         |> HtmlNode.descendants
         |> Seq.filter (HtmlNode.innerText >> ((=) sheetName))
-        |> Seq.filter (HtmlNode.attributes >> List.exists (Attribute.name >> ((=) "id")))
-        |> Seq.head
+        |> Seq.find (HtmlNode.attributes >> List.exists (Attribute.name >> ((=) "id")))
         |> HtmlNode.attribute "id"
         |> Attribute.value
         |> String.replace "sheet-button-" ""
         |> Ok
-    | None -> Error <| sprintf "Sheet %s not found" sheetName
+    | None ->
+        sheetName
+        |> SheetNotFound 
+        |> Error
+        
+let private parseTeam idColumn nameColumn innerText =
+            
+    let teamId = idColumn |> innerText |> int
+    let name = nameColumn |> innerText
+    createTeam teamId name
+    |> Result.mapError TeamParsingError
 
 let private findSheetNode document sheetName = 
     
-    match getSheetId document sheetName with 
-    | Ok sheetId -> 
-
-        let sheetNode = 
-        
-            let elem = 
-                document.Elements()
-                |> Seq.head
-
-            elem
-            |> HtmlNode.descendants
-            |> Seq.filter (fun n -> n.HasAttribute("id", sheetId))
-            |> Seq.head
-            |> HtmlNode.firstElement
-            |> HtmlNode.firstElement
-            |> HtmlNode.elements
-            |> Seq.tail
+    let findNodeById sheetId =
+        let elem = 
+            document
+            |> HtmlDocument.elements
             |> Seq.head
 
-        Ok sheetNode
-    | Error e -> Error e
-
-
+        // TODO rewrite
+        elem
+        |> HtmlNode.descendants
+        |> Seq.find (HtmlNode.hasAttribute "id" sheetId)
+        |> HtmlNode.firstElement
+        |> HtmlNode.firstElement
+        |> HtmlNode.elements
+        |> Seq.tail
+        |> Seq.head
+    
+    sheetName
+    |> getSheetId document
+    |> Result.map findNodeById
 
 let parse sheetName (document : HtmlDocument) = 
     
@@ -121,7 +161,8 @@ let parse sheetName (document : HtmlDocument) =
     
     let getSheetTitle() =
         
-        document.Elements()
+        document
+        |> HtmlDocument.elements
         |> Seq.head
         |> HtmlNode.descendants
         |> Seq.item 2
@@ -132,6 +173,7 @@ let parse sheetName (document : HtmlDocument) =
         getSheetTitle()
         |> String.replace "Таблица " ""
         |> NoEmptyString.ofString
+        |> Result.mapError (fun _ -> MissingTournamentName)
 
     let parserOptions (sheetNode : HtmlNode) = 
         
@@ -173,20 +215,9 @@ let parse sheetName (document : HtmlDocument) =
                 options.AnswersColumns
                 |> List.map (innerTextOfNode' >> ((=) rightAnswer) >> Answer.ofBool)
                 |> Answers.ofSeq
-
-            let team = 
                 
-                result{
-                    let! teamId = options.IdColumn |> innerTextOfNode' |> PositiveNum.ofString
-                    let! name = options.NameColumn |> innerTextOfNode' |> NoEmptyString.ofString
-
-                    return {
-                        ID = teamId
-                        Name = name
-                    }
-                }
-                
-            team
+            innerTextOfNode'
+            |> parseTeam options.IdColumn options.NameColumn
             |> Result.map (fun t -> (t, answers))
 
                 
@@ -196,26 +227,22 @@ let parse sheetName (document : HtmlDocument) =
             |> HtmlNode.elements 
             |> List.exists (fun c -> String.startsWith sheetId <| c.AttributeValue("id"))
 
-                
-        let exceptLast s = 
-            s
-            |> Seq.rev
-            |> Seq.tail
-            |> Seq.rev
-        
         let teamsLines = 
             sheetNode
             |> HtmlNode.elements
-            |> Seq.tail
+            |> Seq.tail // may be remove?
             |> Seq.filter filterBySheetId
-            |> exceptLast
+            |> Seq.exceptLast
         
         let createGameDay gameDaySoFar team answers = 
             
-            match gameDaySoFar with 
-            | Ok gameDay -> 
-                gameDay |> GameDay.withTeam team answers
-            | Error e -> Error e
+            let addTeam gameDay =
+                gameDay
+                |> GameDay.withTeam team answers
+                |> Result.mapError (fun _ -> DuplicatedTeam team)
+            
+            gameDaySoFar
+            |> Result.bind addTeam
 
         teamsLines
         |> Seq.map parse
@@ -225,16 +252,22 @@ let parse sheetName (document : HtmlDocument) =
     let gameDay = 
 
         result{
+            let! gameName = sheetName
+                            |> NoEmptyString.ofString
+                            |> Result.mapError (fun _ -> MissingSheetName)
+            
             let! sheetNode = findSheetNode document sheetName
             let! sheetId = getSheetId document sheetName
             let! tournament = getTournamentName()
-            let! gameName = sheetName |> NoEmptyString.ofString
+            
 
             let options = parserOptions sheetNode
 
-            let emptyGameDay = 
-                36 
+            let emptyGameDay =
+                options.AnswersColumns
+                |> List.length
                 |> PositiveNum.ofInt
+                |> Result.mapError (fun _ -> MissingAnswersCount)
                 |> Result.map (fun num -> {Tournament = tournament; Name = gameName; Answers = Map.empty; PackageSize = num})
 
             return! parseGameDay options sheetNode sheetId emptyGameDay
@@ -255,8 +288,6 @@ let parseTotal document =
 
         let innerTextOfNode' = innerTextOfNode node
 
-        
-
         let tryParseDecimal s = 
             s 
             |> String.replace "," "."
@@ -270,19 +301,11 @@ let parseTotal document =
             |> Seq.choose id
             |> Seq.map Converter.pointFromDecimal
         
-        let team = 
-            
-            result {
-                let! teamId = options.TeamIdColumn |> innerTextOfNode' |> PositiveNum.ofString
-                let! name = options.TeamNameColumn |> innerTextOfNode' |> NoEmptyString.ofString
-
-                return {ID = teamId; Name = name}
-            }
-
-        team
+        innerTextOfNode'
+        |> parseTeam options.TeamIdColumn options.TeamNameColumn
         |> Result.map (fun team -> (team, res))
 
-    let seasonRating = 
+    let seasonRating : Result<_, ParsingError> = 
 
         result{
             
@@ -300,14 +323,23 @@ let parseTotal document =
                     TeamNameColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "Команда"))
                     FirstResultColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "сум")) |> (+) 2
                 }
-
-            return!
+                
+            let linesWithTeams =
                 sheetNode
                 |> HtmlNode.elements
-                |> (Seq.rev >> Seq.skip 2 >> Seq.rev) // except last
                 |> Seq.skip 2
+                |> (Seq.exceptLast >> Seq.exceptLast)
+                
+                
+            let seasonTable data =
+                data
+                |> SeasonTable.ofSeq
+                |> Result.mapError (fun _ -> SeasonHasNotStarted)
+
+            return!
+                linesWithTeams
                 |> Seq.map (parseLine parserOptions)
                 |> Result.OfSeq (Ok Seq.empty)
-                |> Result.bind SeasonTable.ofSeq
+                |> Result.bind seasonTable
         }
     seasonRating

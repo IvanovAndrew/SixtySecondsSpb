@@ -10,6 +10,7 @@
     <Compile Include="PositiveNumTests.fs" />
     <Compile Include="GameDayTests.fs" />
     <Compile Include="PlayoffTests.fs" />
+    <Compile Include="ExtensionTests.fs" />
   </ItemGroup>
 
   <ItemGroup>

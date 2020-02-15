@@ -5,6 +5,7 @@ open Utils
 open Utils.PositiveNum
 open Chart
 open Config
+open Parser
 open SpreadsheetWriter
 
 type WriteMode = 
@@ -152,16 +153,17 @@ let main argv =
             async {
                 let! document = 
                     sixtySeconds.PubHtml 
-                    |> Parser.asyncLoadDocument 
-
+                    |> Parser.asyncLoadDocument
+                
                 return
                     document
-                    |> Result.bind (Parser.parse sheet)
+                    |> Result.mapError WebRequestError
+                    |> Result.bind (fun d -> d |> Parser.parse sheet |> Result.mapError ParsingError)
                     |> Result.map (processGameDay options)
             } |> Async.RunSynchronously
         
         match res with 
-        | Error e -> failwith e
+        | Error e -> e |> errorToString |> failwith
         | Ok _ -> ()
     | None -> ()
     
@@ -174,7 +176,8 @@ let main argv =
 
                 return 
                     document
-                    |> Result.bind Parser.parseTotal 
+                    |> Result.mapError WebRequestError
+                    |> Result.bind (fun v -> v |> Parser.parseTotal |> Result.mapError ParsingError)  
                     |> Result.map (fun seasonTable -> showTotalTable seasonTable gamesToCount)
             } |> Async.RunSynchronously
 
