@@ -151,9 +151,15 @@ let main argv =
         
         let res = 
             async {
-                let! document = 
-                    sixtySeconds.PubHtml 
-                    |> Parser.asyncLoadDocument
+                let! document =
+                    let url = 
+                        sixtySeconds.PubHtml
+                        |> Url.create
+                        
+                    match url with
+                    | Ok u -> Parser.asyncLoadDocument u
+                    // TODO remove it
+                    | Error e -> failwith e
                 
                 return
                     document
@@ -172,7 +178,15 @@ let main argv =
         | Some gamesToCount -> 
             
             async {
-                let! document = sixtySeconds.PubHtml |> Parser.asyncLoadDocument
+                let! document =
+                    let url = 
+                        sixtySeconds.PubHtml
+                        |> Url.create
+                    
+                    match url with
+                    | Ok v -> Parser.asyncLoadDocument v
+                    // TODO remove it
+                    | Error e -> failwith "Wrong url"
 
                 return 
                     document
@@ -180,7 +194,6 @@ let main argv =
                     |> Result.bind (fun v -> v |> Parser.parseTotal |> Result.mapError ParsingError)  
                     |> Result.map (fun seasonTable -> showTotalTable seasonTable gamesToCount)
             } |> Async.RunSynchronously
-
             
         | None -> Ok()
         

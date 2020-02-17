@@ -42,11 +42,11 @@ let errorToString = function
 let asyncLoadDocument url = 
     
     async {
-        
-        let! response = Http.AsyncRequest(url, silentHttpErrors = true)
+        let urlString = Url.value url
+        let! response = Http.AsyncRequest(urlString, silentHttpErrors = true)
 
         let result = 
-            if response.StatusCode <> 200 then url |> PageNotFound |> Error
+            if response.StatusCode <> 200 then urlString |> PageNotFound |> Error
             else
                 match response.Body with 
                 | HttpResponseBody.Text text -> 

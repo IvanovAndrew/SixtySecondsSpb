@@ -10,6 +10,7 @@ open Elmish.WPF
 open SixtySecond.GUI.Settings
 open SixtySeconds.Views
 
+open Domain
 open Parser
 open Utils
 
@@ -26,8 +27,8 @@ type Model =
         Day : string
         ErrorMessage : string option
 
-        SeasonTableWin : SeasonTableApp.Model option
-        GameDayWindow : GameDayApp.Model option
+        SeasonTableModel : SeasonTableApp.Model option
+        GameDayModel : GameDayApp.Model option
     }
 
 let init() =
@@ -37,90 +38,121 @@ let init() =
         Day = sprintf "%d.%02d" DateTime.Today.Day DateTime.Today.Month
         ErrorMessage = None
 
-        SeasonTableWin = None
-        GameDayWindow = None
+        SeasonTableModel = None
+        GameDayModel = None
+    }, Cmd.none
+    
+let loadSeasonTable url =
+    async {
+        let! document = url |> Parser.asyncLoadDocument 
+
+        return 
+            document
+            |> Result.mapError WebRequestError
+            |> Result.bind (Parser.parseTotal >> Result.mapError ParsingError)
+    }
+    
+let loadGameDay (url, game) =
+    async {
+        let! document = url |> Parser.asyncLoadDocument 
+        
+        return
+            document
+            |> Result.mapError WebRequestError
+            |> Result.bind (Parser.parse game >> Result.mapError ParsingError)
     }
 
 type Message =
     | TableUrlEntered of string
-    | GameDayEntered of string
-    | LoadGameDay of Url * string
-    
-
-    | GameDayMessage of GameDayApp.Message
-
-    | GameDayCloseRequested
-
     | LoadSeasonTable of Url
-    
+    | OnSeasonTableLoaded of Result<SeasonTable, SixtySecondsError>
+    | OnLoadSeasonTableSuccess of SeasonTable
+    | OnLoadSeasonTableError of SixtySecondsError
     | SeasonTableMessage of SeasonTableApp.Message
     | SeasonTableCloseRequested
     
+    
+    | GameDayEntered of string
+    
+    | LoadGameDay of Url * string
+    | OnGameDayLoaded of Result<GameDay, SixtySecondsError>
+    | OnGameDayLoadedSuccess of GameDay
+    | OnGameDayLoadedError of SixtySecondsError
+    | GameDayCloseRequested
 
+    | GameDayMessage of GameDayApp.Message
 
-let update msg m =
+    | StoreValue of Setting * string
+    
+    
+let resultToMessage successMessage errorMessage result =
+    
+    match result with
+    | Ok result -> successMessage result
+    | Error error -> errorMessage error
+
+// https://medium.com/@MangelMaxime/my-tips-for-working-with-elmish-ab8d193d52fd
+
+let update msg model =
     match msg with
-    | TableUrlEntered url -> {m with TableUrl = url; ErrorMessage = None}
+    | TableUrlEntered url -> {model with TableUrl = url; ErrorMessage = None}, Cmd.none
         
-    | GameDayEntered d -> {m with Day = d; ErrorMessage = None}
-    | LoadSeasonTable url -> 
+    | GameDayEntered d -> {model with Day = d; ErrorMessage = None}, Cmd.none
+    
+    | LoadSeasonTable url -> model, Cmd.OfAsync.perform loadSeasonTable url OnSeasonTableLoaded
+    | OnSeasonTableLoaded result ->
         
-        let seasonWindow = 
-            async {
-                let! document = url |> Url.value |> Parser.asyncLoadDocument 
-
-                return 
-                    document
-                    |> Result.mapError WebRequestError
-                    |> Result.bind (Parser.parseTotal >> Result.mapError ParsingError)
-                    |> Result.map SeasonTableApp.initModel
-            } |> Async.RunSynchronously
-            
-            
-        match seasonWindow with 
-        | Ok (window : SeasonTableApp.Model)->
-            
-            Config.save TableUrl m.TableUrl
-            {m with SeasonTableWin = Some window}
-        | Error e -> 
-            {m with ErrorMessage = e |> errorToString |> Some }
-
-    | LoadGameDay(url, gameName) -> 
+        let message =
+            result
+            |> resultToMessage OnLoadSeasonTableSuccess OnLoadSeasonTableError
+        model, Cmd.ofMsg <| message
         
-        let gameDayResult = 
+    
+    | OnLoadSeasonTableSuccess seasonTable ->
+        {
+            model with SeasonTableModel = Some <| SeasonTableApp.initModel seasonTable
+        },
+        Cmd.ofMsg <| StoreValue(TableUrl, model.TableUrl)
+        
+    | OnLoadSeasonTableError error ->
+        {model with ErrorMessage = error |> errorToString |> Some }, Cmd.none
+    
+    | LoadGameDay(url, gameName) ->
+        model, Cmd.OfAsync.perform loadGameDay (url, gameName) OnGameDayLoaded 
+        
+    | OnGameDayLoaded result ->
+        let nextCommand =
+            result
+            |> resultToMessage OnGameDayLoadedSuccess OnGameDayLoadedError
+            |> Cmd.ofMsg
+        model, nextCommand
+        
+    | OnGameDayLoadedSuccess gameDay ->
+        
+        {model with GameDayModel = GameDayApp.init gameDay |> Some},
+        Cmd.ofMsg <| StoreValue(TableUrl, model.TableUrl) 
+    
+    | OnGameDayLoadedError error ->
+        {model with ErrorMessage = error |> errorToString |> Some}, Cmd.none
             
-            async {
-                
-                let! document = url |> Url.value |> Parser.asyncLoadDocument 
-                
-                return
-                    document
-                    |> Result.mapError WebRequestError
-                    |> Result.bind (Parser.parse gameName >> Result.mapError ParsingError)
-            } |> Async.RunSynchronously
-            
-        match gameDayResult with 
-        | Ok gameDay -> 
-            {m with
-                GameDayWindow = GameDayApp.init gameDay |> Some
-            }
-        | Error e -> {m with ErrorMessage = e |> errorToString |> Some}
-
     | GameDayMessage message -> 
         {
-            m with 
-                GameDayWindow = 
-                    m.GameDayWindow |> Option.map (GameDayApp.update message)
-            }
-    | GameDayCloseRequested -> {m with GameDayWindow = None}
+            model with 
+                GameDayModel = 
+                    model.GameDayModel |> Option.map (GameDayApp.update message)
+        }, Cmd.none
+    | GameDayCloseRequested -> {model with GameDayModel = None}, Cmd.none
     
     | SeasonTableMessage message -> 
         {
-            m with 
-                SeasonTableWin = 
-                    m.SeasonTableWin |> Option.map(SeasonTableApp.update message)
-        }
-    | SeasonTableCloseRequested -> {m with SeasonTableWin = None}
+            model with 
+                SeasonTableModel = 
+                    model.SeasonTableModel |> Option.map(SeasonTableApp.update message)
+        }, Cmd.none
+    | StoreValue (setting, value) ->
+        Config.save setting value
+        model, Cmd.none
+    | SeasonTableCloseRequested -> {model with SeasonTableModel = None}, Cmd.none
     
 
 let bindings () : Binding<Model, Message> list = [
@@ -146,7 +178,7 @@ let bindings () : Binding<Model, Message> list = [
         fun model -> model.TableUrl |> Url.create |> Result.map LoadSeasonTable)
 
     "SeasonTableWin" |> Binding.subModelWin(
-        (fun m -> m.SeasonTableWin |> WindowState.ofOption), 
+        (fun m -> m.SeasonTableModel |> WindowState.ofOption), 
         snd, 
         id,
         SeasonTableApp.bindings SeasonTableMessage,
@@ -156,7 +188,7 @@ let bindings () : Binding<Model, Message> list = [
       )
 
     "GameDayWindow" |> Binding.subModelWin(
-        (fun m -> m.GameDayWindow |> WindowState.ofOption), 
+        (fun m -> m.GameDayModel |> WindowState.ofOption), 
         snd, 
         id,
         GameDayApp.bindings GameDayMessage,
@@ -180,7 +212,7 @@ let main _ =
 
     let mainWindow = createWindow()
     
-    Program.mkSimpleWpf init update bindings
+    Program.mkProgramWpf init update bindings
     |> Program.withConsoleTrace
     |> Program.runWindowWithConfig
         { ElmConfig.Default with LogConsole = true; Measure = true }
