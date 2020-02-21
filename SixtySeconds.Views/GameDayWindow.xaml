@@ -5,81 +5,57 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SixtySeconds.Views"
         mc:Ignorable="d"
-        Title="GameDayWindow" Width="550" Height="500">
+        Title="Game day" Width="500" Height="500"
+        Icon="Images/favicon.ico">
     <Window.Resources>
-        <Style x:Key="TextBox" TargetType="TextBox">
-            <Style.Setters>
-                <Setter Property="Width" Value="100"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-                <Setter Property="Validation.ErrorTemplate">
-                    <Setter.Value>
-                        <ControlTemplate>
-                            <DockPanel>
-                                <TextBlock Foreground="Red" FontWeight="Bold"></TextBlock>
-                                <TextBlock Text="{Binding ErrorContent}" DockPanel.Dock="Right" Foreground="Red" TextAlignment="Center" Margin="5 0"/>
-                                <Border BorderBrush="Red" BorderThickness="2">
-                                    <AdornedElementPlaceholder/>
-                                </Border>
-                            </DockPanel>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style.Setters>
-            <Style.Triggers>
-                <Trigger Property="Validation.HasError" Value="True">
-                    <Setter
-                        Property="ToolTip"
-                        Value="{Binding RelativeSource={x:Static RelativeSource.Self},
-            Path=(Validation.Errors)/ErrorContent}" />
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="TextBlock" TargetType="TextBlock">
-            <Style.Setters>
-                <Setter Property="Margin" Value="10 10 10 10"/>
-                <Setter Property="TextAlignment" Value="Center"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-                <Setter Property="Width" Value="100"/>
-            </Style.Setters>
-        </Style>
-        <Style x:Key="Button" TargetType="Button">
-            <Style.Setters>
-                <Setter Property="Margin" Value="0 5 10 5"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-                <Setter Property="Width" Value="150"/>
-            </Style.Setters>
-        </Style>
+        <ResourceDictionary Source="ResourceDictionary.xaml"></ResourceDictionary>
     </Window.Resources>
-    <StackPanel>
-        <TextBlock Text="{Binding ShowChartTitle}" Width="200" Style="{StaticResource TextBlock}"/>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Team IDs" Style="{StaticResource TextBlock}"/>
-            <TextBox Text="{Binding TeamIds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Best teams" Style="{StaticResource TextBlock}"/>
-            <TextBox Text="{Binding BestTeams, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-            <Button Command="{Binding ShowPlacesCharts}" Content="Show places chart" Style="{StaticResource Button}"/>
-            <Button Command="{Binding ShowAnswersCharts}" Content="Show answers chart" Style="{StaticResource Button}" />
-        </StackPanel>
-    <Separator/>
-    <StackPanel>
-        <TextBlock Text="{Binding WriteToSpreadsheetTitle}" Width="300" Style="{StaticResource TextBlock}"/>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Team ID" Style="{StaticResource TextBlock}"/>
-            <TextBox Text="{Binding TeamID, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="SpreadsheetID" Style="{StaticResource TextBlock}"/>
-            <TextBox Text="{Binding SpreadsheetID, UpdateSourceTrigger=PropertyChanged}" Width="200" Style="{StaticResource TextBox}"/>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Sheet" Style="{StaticResource TextBlock}"/>
-            <TextBox Text="{Binding SheetName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
-        </StackPanel>
-        <StackPanel>
+    <TabControl>
+        <TabItem Width="225" Style="{StaticResource TabItem}">
+            <TabItem.Header>
+                <StackPanel Orientation="Horizontal">
+                    <Image Source="Images/chart.ico" Margin="10 0"/>
+                    <TextBlock Text="Charts"/>
+                </StackPanel>
+            </TabItem.Header>
+            <StackPanel>
+                <TextBlock Text="{Binding ShowChartTitle}" Width="200" Style="{StaticResource TextBlock}"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Team IDs" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding TeamIds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Best teams" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding BestTeams, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Command="{Binding ShowPlacesCharts}" Content="Show places chart" Style="{StaticResource Button}"/>
+                    <Button Command="{Binding ShowAnswersCharts}" Content="Show answers chart" Style="{StaticResource Button}" />
+                </StackPanel>
+            </StackPanel>
+        </TabItem>
+        <TabItem Width="225" Style="{StaticResource TabItem}">
+            <TabItem.Header>
+                <StackPanel Orientation="Horizontal">
+                    <Image Source="Images/GoogleSpreadsheet.png" Margin="10 0"/>
+                    <TextBlock Text="Spreadsheet"/>
+                </StackPanel>
+            </TabItem.Header>
+            <StackPanel>
+                <TextBlock Text="{Binding WriteToSpreadsheetTitle}" Width="300" Style="{StaticResource TextBlock}"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Team ID" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding TeamID, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="SpreadsheetID" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding SpreadsheetID, UpdateSourceTrigger=PropertyChanged}" Width="300" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Sheet" Style="{StaticResource TextBlock}"/>
+                    <TextBox Text="{Binding SheetName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
+                </StackPanel>
+                <StackPanel>
             <StackPanel Orientation="Horizontal">
                 <StackPanel>
                     <TextBlock Text="Rows" Style="{StaticResource TextBlock}" />
@@ -126,6 +102,7 @@
                 Foreground="Green"
                 Style="{StaticResource TextBlock}"/>
             </StackPanel>
-        </StackPanel>
-    </StackPanel>
+            </StackPanel>
+        </TabItem>
+    </TabControl>
 </Window>

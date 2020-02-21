@@ -22,4 +22,9 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="Images\favicon.ico" />
+    <Resource Include="Images\chart.ico" />
+    <Resource Include="Images\GoogleSpreadsheet.png" />
+  </ItemGroup>
 </Project>
