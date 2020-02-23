@@ -4,6 +4,7 @@ open System
 open System.Windows
 open Domain
 open Utils
+open Utils.PositiveNum
 open Elmish.WPF
 
 let topNTeams = 12
@@ -20,8 +21,8 @@ type TeamSeasonRating =
 
 type Model = 
     {
-        GamesToCount : int
-        MaximumGames : int
+        GamesToCount : PositiveNum
+        MaximumGames : PositiveNum
         SeasonTable : SeasonTable
         FilteredSeasonTable : TeamSeasonRating seq
         Playoff : string option
@@ -31,15 +32,17 @@ type Model =
     
 let initModel (seasonTable : SeasonTable) = 
     { 
-        GamesToCount = seasonTable.GamesCount |> PositiveNum.value
-        MaximumGames = seasonTable.GamesCount |> PositiveNum.value
+        GamesToCount = seasonTable.GamesCount
+        MaximumGames = seasonTable.GamesCount
         SeasonTable = seasonTable
         FilteredSeasonTable = Seq.empty
         Playoff = None
     }
 
 let gamesToCountChanged gamesToCount model = 
-    {model with GamesToCount = gamesToCount}
+    match gamesToCount |> PositiveNum.ofInt with
+    | Ok g -> {model with GamesToCount = g}
+    | Error _ -> model
 
 let validateGamesToCount (seasonTable : SeasonTable) games = 
         
@@ -90,7 +93,7 @@ let copyToClipboard rating model =
 
 type Message = 
     | GamesToCountChanged of gamesToCount : int
-    | ShowSeasonTable of count : Utils.PositiveNum.PositiveNum
+    | ShowSeasonTable of count : PositiveNum
     | ShowPlayoff of TeamSeasonRating seq
     | CopyToClipboard of TeamSeasonRating seq
 
@@ -104,15 +107,15 @@ let update message model =
 let bindings wrap = 
     (fun () -> [
         "GamesToCount" |> Binding.twoWay(
-            (fun m -> float m.GamesToCount),
-            (fun gamesToCount model -> printfn "gamesToCountChanged"; gamesToCount |> int |> GamesToCountChanged |> wrap)
+            (fun m -> m.GamesToCount |> PositiveNum.value |> float),
+            (fun g m -> g |> int |> GamesToCountChanged |> wrap)
             )
-        "MaxValue" |> Binding.oneWay(fun m -> float m.MaximumGames)
-        "ShowSeasonTable" |> Binding.cmdIf(
+        "MaxValue" |> Binding.oneWay(fun m -> m.MaximumGames |> PositiveNum.value |> float)
+        "ShowSeasonTable" |> Binding.cmd(
                 fun model -> 
                     model.GamesToCount
-                    |> PositiveNum.ofInt
-                    |> Result.map (ShowSeasonTable >> wrap)
+                    |> ShowSeasonTable 
+                    |> wrap
             )
         "ShowPlayOff" |> Binding.cmdIf(
                 fun model ->
