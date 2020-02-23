@@ -20,7 +20,8 @@ type TeamSeasonRating =
 
 type Model = 
     {
-        GamesToCount : string
+        GamesToCount : int
+        MaximumGames : int
         SeasonTable : SeasonTable
         FilteredSeasonTable : TeamSeasonRating seq
         Playoff : string option
@@ -30,7 +31,8 @@ type Model =
     
 let initModel (seasonTable : SeasonTable) = 
     { 
-        GamesToCount = seasonTable.GamesCount |> PositiveNum.value |> string 
+        GamesToCount = seasonTable.GamesCount |> PositiveNum.value
+        MaximumGames = seasonTable.GamesCount |> PositiveNum.value
         SeasonTable = seasonTable
         FilteredSeasonTable = Seq.empty
         Playoff = None
@@ -87,7 +89,7 @@ let copyToClipboard rating model =
     model
 
 type Message = 
-    | GamesToCountChanged of gamesToCount : string
+    | GamesToCountChanged of gamesToCount : int
     | ShowSeasonTable of count : Utils.PositiveNum.PositiveNum
     | ShowPlayoff of TeamSeasonRating seq
     | CopyToClipboard of TeamSeasonRating seq
@@ -101,15 +103,15 @@ let update message model =
 
 let bindings wrap = 
     (fun () -> [
-        "GamesToCount" |> Binding.twoWayValidate(
-            (fun m -> m.GamesToCount),
-            (fun gamesToCount model -> wrap(GamesToCountChanged gamesToCount)),
-            (fun m -> m.GamesToCount |> validateGamesToCount m.SeasonTable)
+        "GamesToCount" |> Binding.twoWay(
+            (fun m -> float m.GamesToCount),
+            (fun gamesToCount model -> printfn "gamesToCountChanged"; gamesToCount |> int |> GamesToCountChanged |> wrap)
             )
+        "MaxValue" |> Binding.oneWay(fun m -> float m.MaximumGames)
         "ShowSeasonTable" |> Binding.cmdIf(
                 fun model -> 
-                    model.GamesToCount 
-                    |> validateGamesToCount model.SeasonTable 
+                    model.GamesToCount
+                    |> PositiveNum.ofInt
                     |> Result.map (ShowSeasonTable >> wrap)
             )
         "ShowPlayOff" |> Binding.cmdIf(
