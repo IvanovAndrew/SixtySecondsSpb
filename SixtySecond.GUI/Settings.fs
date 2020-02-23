@@ -5,6 +5,7 @@ open Utils
 type Setting =
     | TableUrl
     | SpreadsheetUrl
+    | Game
     | FirstQuestion
     | TeamAnswered
     | RightAnswers
@@ -14,9 +15,12 @@ type Setting =
     
 module Config =
     
+    open SixtySeconds.Views.Properties
+    
     let private settingToKey = function
         | TableUrl -> "TableUrl"
         | SpreadsheetUrl -> "SpreadsheetUrl"
+        | Game -> "Game"
         | FirstQuestion -> "FirstQuestion"
         | TeamAnswered -> "TeamAnswered"
         | RightAnswers -> "RightAnswers"
@@ -25,8 +29,7 @@ module Config =
     
     let load setting =
         
-        let getSettingValue key =
-            SixtySeconds.Views.Properties.Settings.Default.[key]
+        let getSettingValue key = Settings.Default.[key]
         
         setting
         |> settingToKey
@@ -36,5 +39,5 @@ module Config =
     let save setting value = 
         
         let key = settingToKey setting
-        SixtySeconds.Views.Properties.Settings.Default.[key] <- value 
-        SixtySeconds.Views.Properties.Settings.Default.Save()
+        Settings.Default.[key] <- value 
+        Settings.Default.Save()

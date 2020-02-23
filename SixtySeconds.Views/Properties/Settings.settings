@@ -8,6 +8,9 @@
     <Setting Name="SpreadsheetUrl" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
+    <Setting Name="Game" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
     <Setting Name="FirstQuestion" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">0</Value>
     </Setting>

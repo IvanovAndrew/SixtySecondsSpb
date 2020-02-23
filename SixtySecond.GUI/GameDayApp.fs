@@ -7,6 +7,7 @@ open Elmish.WPF
 open SixtySecond.GUI.Settings
 open Utils.PositiveNum
 open SpreadsheetWriter
+open Utils
 
 type Model = 
     {
@@ -46,7 +47,7 @@ let init gameDay =
         BestTeams = ""
         ChartsErrorStatus = None
         SpreadSheetId = Config.load SpreadsheetUrl
-        SheetName = ""
+        SheetName = NoEmptyString.value gameDay.Name
         TeamId = ""
         SheetOptions = defaultSheetOptions
         Status = None
@@ -141,9 +142,9 @@ let showChartButtonAvailable model =
             match bestTeams, customTeams with
             | Some num, [] -> Ok <| BestTeamsOnly num
             | Some num, x -> Ok <| CustomTeamsAndBestTeams(x, num)
+            | None, x :: xs -> Ok <| CustomTeamsOnly customTeams
             | None, [] -> Error "Team ID or best teams count required"
-            | None, x -> Ok <| CustomTeamsOnly x
-
+            
         return! message 
     }
         

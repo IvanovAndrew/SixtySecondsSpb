@@ -13,11 +13,9 @@ open SixtySeconds.Views
 open Domain
 open Parser
 open Utils
+open Utils
 
-let validateGameDay (s : string) = 
-    if Regex.IsMatch(s, @"^\d{1,2}\.\d{1,2}(.\d{4})?") 
-    then Ok s
-    else Error "Incorrect game day"
+let validateGameDay = NoEmptyString.ofString 
 
 let validateUrl = Url.create
 
@@ -35,7 +33,7 @@ let init() =
 
     { 
         TableUrl = Config.load TableUrl 
-        Day = sprintf "%d.%02d" DateTime.Today.Day DateTime.Today.Month
+        Day = Config.load Game
         ErrorMessage = None
 
         SeasonTableModel = None
@@ -74,7 +72,7 @@ type Message =
     
     | GameDayEntered of string
     
-    | LoadGameDay of Url * string
+    | LoadGameDay of Url * NoEmptyString
     | OnGameDayLoaded of Result<GameDay, SixtySecondsError>
     | OnGameDayLoadedSuccess of GameDay
     | OnGameDayLoadedError of SixtySecondsError
@@ -82,7 +80,7 @@ type Message =
 
     | GameDayMessage of GameDayApp.Message
 
-    | StoreValue of Setting * string
+    | StoreValues of (Setting * string) list
     
     
 let resultToMessage successMessage errorMessage result =
@@ -112,7 +110,7 @@ let update msg model =
         {
             model with SeasonTableModel = Some <| SeasonTableApp.initModel seasonTable
         },
-        Cmd.ofMsg <| StoreValue(TableUrl, model.TableUrl)
+        Cmd.ofMsg <| StoreValues [TableUrl, model.TableUrl]
         
     | OnLoadSeasonTableError error ->
         {model with ErrorMessage = error |> errorToString |> Some }, Cmd.none
@@ -130,7 +128,7 @@ let update msg model =
     | OnGameDayLoadedSuccess gameDay ->
         
         {model with GameDayModel = GameDayApp.init gameDay |> Some},
-        Cmd.ofMsg <| StoreValue(TableUrl, model.TableUrl) 
+        Cmd.ofMsg <| StoreValues [(TableUrl, model.TableUrl); (Game, gameDay.Name |> NoEmptyString.value)] 
     
     | OnGameDayLoadedError error ->
         {model with ErrorMessage = error |> errorToString |> Some}, Cmd.none
@@ -149,8 +147,11 @@ let update msg model =
                 SeasonTableModel = 
                     model.SeasonTableModel |> Option.map(SeasonTableApp.update message)
         }, Cmd.none
-    | StoreValue (setting, value) ->
-        Config.save setting value
+    | StoreValues values ->
+        
+        values
+        |> List.iter (fun (setting, value) -> Config.save setting value)
+        
         model, Cmd.none
     | SeasonTableCloseRequested -> {model with SeasonTableModel = None}, Cmd.none
     
