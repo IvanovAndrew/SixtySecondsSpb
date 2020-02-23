@@ -248,8 +248,15 @@ module SeasonTable =
                 Results = data |> Map.ofSeq
                 GamesCount = gamesCount
             }
+            
+        let gamesCount d =
+            data
+            |> Seq.map (snd >> Seq.length)
+            |> Seq.max
+            |> PositiveNum.ofInt
 
-        data |> Seq.map (snd >> Seq.length) |> Seq.max |> PositiveNum.ofInt
+        data
+        |> gamesCount
         |> Result.map create
 
 

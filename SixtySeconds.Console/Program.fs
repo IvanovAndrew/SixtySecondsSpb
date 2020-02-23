@@ -7,6 +7,7 @@ open Chart
 open Config
 open Parser
 open SpreadsheetWriter
+open Utils
 
 type WriteMode = 
     | ReadOnly 
@@ -18,7 +19,7 @@ type TeamChartMode =
 
 type CommandLineOption = 
     {
-        SheetId : string option
+        SheetId : NoEmptyString option
         TeamId : PositiveNum
         WriteMode : WriteMode
         TeamChart : TeamChartMode option
@@ -35,7 +36,11 @@ let rec parseCommandLine argv optionsSoFar =
         | [] -> optionsSoFar
         
         | "-read" :: sheetInput :: tail -> 
-            let newOptions = Ok {options with SheetId = Some sheetInput}
+            
+            let newOptions =
+                match NoEmptyString.ofString sheetInput with
+                | Ok value -> Ok {options with SheetId = Some value}
+                | Error e -> Error e
             parseCommandLine tail newOptions
 
         | "-team" :: team :: tail -> 

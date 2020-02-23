@@ -4,6 +4,7 @@ open FSharp.Data
 
 open Utils
 open Domain
+open Utils
 
 type ParsingError =
     | MissingSheetName
@@ -103,14 +104,14 @@ let private getSheetId (document : HtmlDocument) sheetName =
 
     let nodeOption = 
         children
-        |> Seq.tryFind (HtmlNode.innerText >> String.containsSubstring sheetName)
+        |> Seq.tryFind (HtmlNode.innerText >> String.containsSubstring (NoEmptyString.value sheetName))
         
             
     match nodeOption with 
     | Some node -> 
         node
         |> HtmlNode.descendants
-        |> Seq.filter (HtmlNode.innerText >> ((=) sheetName))
+        |> Seq.filter (HtmlNode.innerText >> ((=) (NoEmptyString.value sheetName)))
         |> Seq.find (HtmlNode.attributes >> List.exists (Attribute.name >> ((=) "id")))
         |> HtmlNode.attribute "id"
         |> Attribute.value
@@ -118,6 +119,7 @@ let private getSheetId (document : HtmlDocument) sheetName =
         |> Ok
     | None ->
         sheetName
+        |> NoEmptyString.value
         |> SheetNotFound 
         |> Error
         
@@ -150,7 +152,7 @@ let private findSheetNode document sheetName =
     |> getSheetId document
     |> Result.map findNodeById
 
-let parse sheetName (document : HtmlDocument) = 
+let parse gameName (document : HtmlDocument) = 
     
     let number = "№"
     let name = ""
@@ -252,12 +254,8 @@ let parse sheetName (document : HtmlDocument) =
     let gameDay = 
 
         result{
-            let! gameName = sheetName
-                            |> NoEmptyString.ofString
-                            |> Result.mapError (fun _ -> MissingSheetName)
-            
-            let! sheetNode = findSheetNode document sheetName
-            let! sheetId = getSheetId document sheetName
+            let! sheetNode = findSheetNode document gameName
+            let! sheetId = getSheetId document gameName
             let! tournament = getTournamentName()
             
 
@@ -305,11 +303,17 @@ let parseTotal document =
         |> parseTeam options.TeamIdColumn options.TeamNameColumn
         |> Result.map (fun team -> (team, res))
 
-    let seasonRating : Result<_, ParsingError> = 
+    let seasonRating = 
 
         result{
             
-            let! sheetNode = findSheetNode document "60 сек"
+            let! sheetNode =
+                "60 сек"
+                |> NoEmptyString.ofString
+                |> Result.mapError (fun _ -> MissingTournamentName)
+                |> Result.bind (findSheetNode document)
+                 
+                
             let parserOptions = 
                 
                 let optionsLineNode = 
