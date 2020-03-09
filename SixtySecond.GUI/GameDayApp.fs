@@ -1,4 +1,4 @@
-﻿module GameDayApp
+module GameDayApp
 
 open System.Windows
 open Domain
@@ -122,7 +122,7 @@ let validateTeamIds (gameDay : GameDay) teamIds =
     |> Array.filter (fun str -> match NoEmptyString.ofString str with Ok _ -> true | Error _ -> false)
     |> Array.map PositiveNum.ofString
     |> Array.map (Result.bind findTeam)
-    |> Result.OfSeq (Result.Ok Seq.empty)
+    |> Result.combine
     |> Result.map List.ofSeq
     
 let validateBestTeams input =

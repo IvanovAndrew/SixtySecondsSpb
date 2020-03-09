@@ -3,6 +3,13 @@
 open System
 open System.Text
 
+let (|SeqEmpty|SeqOneItem|SeqMore|) (xs: 'a seq) = //'
+    if Seq.isEmpty xs then SeqEmpty
+    else
+        let tail = Seq.skip 1 xs
+        if Seq.isEmpty tail then SeqOneItem(Seq.head xs)
+        else SeqMore(Seq.head xs, tail)
+
 let isInt (s : string) = 
     match System.Int32.TryParse(s) with 
     | (true, _) -> true
@@ -53,16 +60,21 @@ module Result =
         | Ok value -> Some value
         | Error _ -> None 
 
-    let OfSeq state items =
+    let combine results =
         
-        let folder acc itemResult = 
-            match acc, itemResult with
-            | Ok subseq, Ok item -> Ok <| Seq.append subseq [item]
-            | Ok _, Error e -> Error e
-            | Error e, _ -> Error e
-        
-        items
-        |> Seq.fold folder state
+        let rec loop acc results =
+            
+            if Seq.isEmpty results then acc
+            else
+                let head, tail = Seq.head results, Seq.tail results
+                
+                match head with
+                | Error e -> Error e
+                | Ok ok -> 
+                    let newAcc = acc |> Result.map (fun oks -> ok |> Seq.singleton |> Seq.append oks)
+                    loop newAcc tail
+        results
+        |> loop (Ok Seq.empty)
     
 module String  = 
     open System
@@ -154,12 +166,7 @@ let (+=) (left : System.Text.StringBuilder) (right : 't) : unit =
     left ++ right |> ignore
     
     
-let (|SeqEmpty|SeqOneItem|SeqMore|) (xs: 'a seq) = //'
-    if Seq.isEmpty xs then SeqEmpty
-    else
-        let tail = Seq.skip 1 xs
-        if Seq.isEmpty tail then SeqOneItem(Seq.head xs)
-        else SeqMore(Seq.head xs, tail)
+
     
 
 module Seq =

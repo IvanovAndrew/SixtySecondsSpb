@@ -58,3 +58,31 @@ module SeqExceptLastPropertyBasedTests =
         let lengthAfter = seq |> Seq.exceptLast |> Seq.length
         
         lengthBefore - lengthAfter = 1
+        
+[<TestFixture>]
+module ResultPropertyBasedTests =
+    
+    open TestUtils
+    open FsCheckUtils
+    open Utils
+    
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<SeqResult>|])>]
+    let ``Result.combine will be error if an error item exists``(seq : Result<int, string> list) =
+        
+        let isError = function Ok _ -> false | Error _ -> true
+        
+        (seq |> Seq.exists isError) ==> (seq |> Result.combine |> isError)
+        
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<SeqOKResult>|])>]
+    let ``Result.combine will be Ok if all items are Ok``(seq : Result<int, string> list) =
+        
+        (seq |> Seq.isEmpty |> not) ==> (seq |> Result.combine |> isOk)
+        
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<SeqOKResult>|])>]
+    let ``if all items is OK then length of resulting sequence will be equal to items count``(seq : Result<int, string> list) =
+        
+        let itemsCount = seq |> Seq.length
+        
+        match Result.combine seq with
+        | Ok newSeq -> newSeq |> Seq.length |> (=) itemsCount
+        | Error _ -> false

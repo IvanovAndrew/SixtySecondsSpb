@@ -248,7 +248,7 @@ let parse gameName (document : HtmlDocument) =
 
         teamsLines
         |> Seq.map parse
-        |> Result.OfSeq (Ok Seq.empty)
+        |> Result.combine 
         |> Result.bind (fun seq -> seq |> Seq.fold (fun acc (team, answers) -> createGameDay acc team answers) gameDay)
     
     let gameDay = 
@@ -343,7 +343,7 @@ let parseTotal document =
             return!
                 linesWithTeams
                 |> Seq.map (parseLine parserOptions)
-                |> Result.OfSeq (Ok Seq.empty)
+                |> Result.combine
                 |> Result.bind seasonTable
         }
     seasonRating

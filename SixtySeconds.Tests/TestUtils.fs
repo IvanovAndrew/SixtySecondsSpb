@@ -42,6 +42,21 @@ module FsCheckUtils =
             |> Gen.map Seq.ofList
             |> Arb.fromGen
             
+    type SeqResult =
+        
+        static member ValidResults =
+            
+            Arb.generate<Result<_, _>>
+            |> Arb.fromGen
+        
+    // https://stackoverflow.com/a/31069606/2486842
+    let isOk = function Ok _ -> true | _ -> false
+    let g = Arb.generate<Result<int, string>> |> Gen.filter isOk |> Gen.listOf
+    type SeqOKResult =
+        
+        static member ValidResults =
+            
+            Arb.fromGen g
             
     type AnswersTypes =
         static member ValidAnswers =
