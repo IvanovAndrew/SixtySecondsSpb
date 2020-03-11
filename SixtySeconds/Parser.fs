@@ -73,6 +73,7 @@ type RatingParserOption =
         TeamIdColumn : int 
         TeamNameColumn : int
         FirstResultColumn : int
+        FinalResultColumn : int
     }
 
 module HtmlNode = 
@@ -291,10 +292,17 @@ let parseTotal document =
             |> String.replace "," "."
             |> (fun s -> if s <> "" then s |> decimal |> Some else None)
 
+        let filterResultNodes elements =
+            elements
+            |> Seq.mapi (fun index value -> (index, value))
+            |> Seq.filter (fun (index, _) -> index <> options.FinalResultColumn)
+            |> Seq.skip options.FirstResultColumn
+            |> Seq.map (fun (_, value) -> value)
+        
         let res = 
             node
             |> HtmlNode.elements
-            |> Seq.skip options.FirstResultColumn
+            |> filterResultNodes
             |> Seq.map (HtmlNode.innerText >> tryParseDecimal)
             |> Seq.choose id
             |> Seq.map Converter.pointFromDecimal
@@ -326,6 +334,7 @@ let parseTotal document =
                     TeamIdColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "№"))
                     TeamNameColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "Команда"))
                     FirstResultColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "сум")) |> (+) 2
+                    FinalResultColumn = optionsLineNode |> Seq.length |> (+) -1
                 }
                 
             let linesWithTeams =
