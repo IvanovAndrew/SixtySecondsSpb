@@ -168,7 +168,7 @@ let parse gameName (document : HtmlDocument) =
         |> HtmlDocument.elements
         |> Seq.head
         |> HtmlNode.descendants
-        |> Seq.item 2
+        |> Seq.find (fun node -> node.Name() = "title")
         |> HtmlNode.innerText
 
     let getTournamentName() =
