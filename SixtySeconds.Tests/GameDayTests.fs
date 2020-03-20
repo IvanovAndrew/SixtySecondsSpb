@@ -14,8 +14,6 @@ open Utils
 [<TestFixture>]
 module GameDayExampleTests = 
 
-    open Domain
-    open Utils
     open TestUtils    
 
     let createTeam id name =
@@ -109,7 +107,7 @@ module GameDayExampleTests =
             |> withTeam' secondTeam (Answers.ofBoolArray [|false;|])
             
                     
-        let distance = GameDay.getDistanceFromTheFirstPlace gameDay secondTeam PositiveNum.numOne
+        let distance = GameDay.getGapFromTheFirstPlace gameDay secondTeam PositiveNum.numOne
         distance |> should equal -1 
         
         
@@ -154,48 +152,44 @@ module GameDayPropertiesTests =
         |> Answers.ofBoolArray
 
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
-    let ``GameDay property. Teams that gives only right answers are on the first place`` gameDay =
+    let ``GameDay property. Teams that gives maximum right answers are on the first place`` gameDay =
         
-        let customTeam =  gameDay |> GameDay.teams |> createNewTeam 
-        
-        let gameDayWithCustomTeam =
-            let answers = allRightAnswers <| PositiveNum.value gameDay.PackageSize
+        let teamWithMaximumRightAnswers =
+            gameDay
+            |> GameDay.teams
+            |> Seq.maxBy (GameDay.totalAnswered gameDay gameDay.PackageSize)
             
-            {gameDay with Answers = gameDay.Answers |> Map.add customTeam answers}
-            
-        let place = GameDay.getPlace gameDayWithCustomTeam customTeam
+        let leaderPlace =
+            teamWithMaximumRightAnswers
+            |> GameDay.getPlace gameDay 
         
-        place.From = PositiveNum.numOne
+        leaderPlace.From = PositiveNum.numOne
     
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
-    let ``GameDay property. Teams that give only wrong answers are on the last place`` gameDay =
+    let ``GameDay property. Teams that gives minimum right answers are on the last place`` gameDay =
         
-        let customTeam = gameDay |> GameDay.teams |> createNewTeam
-        
-        let gameDay' =
-            let packageSize = gameDay.PackageSize
+        let teamWithMinimumAnswers =
+            gameDay
+            |> GameDay.teams
+            |> Seq.minBy (GameDay.totalAnswered gameDay gameDay.PackageSize)
             
-            let answers = allWrongAnswers <| PositiveNum.value packageSize
+        let lastPlace = gameDay |> GameDay.teams |> Seq.length |> PositiveNum.ofInt |> okValueOrThrow
             
-            {gameDay with Answers = gameDay.Answers |> Map.add customTeam answers}
-        
-        let lastPlace = gameDay' |> GameDay.teams |> Seq.length |> PositiveNum.ofInt |> okValueOrThrow
-            
-        let place = GameDay.getPlace gameDay' customTeam
-        
+        let place = GameDay.getPlace gameDay teamWithMinimumAnswers
+        printfn "teams %d place %A" (GameDay.teams gameDay |> Seq.length)  place
         place.To = lastPlace
         
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
-    let ``GameDay property. Leading team has 0 distance from the first place`` gameDay =
+    let ``GameDay property. Leading team has 0 gap from the first place`` gameDay =
         
         let leader =
             gameDay
             |> GameDay.leadingTeams PositiveNum.numOne
             |> Seq.head
         
-        let distance = GameDay.getDistanceFromTheFirstPlace gameDay leader gameDay.PackageSize
-        distance = 0<RightAnswer>
+        let gap = GameDay.getGapFromTheFirstPlace gameDay leader gameDay.PackageSize
+        gap = 0<RightAnswer>
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
     let ``GameDay property. Teams must be unique in the game day`` gameDay =
@@ -296,3 +290,52 @@ module GameDayPropertiesTests =
                 else false
         
         processPlace places
+        
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
+    let ``GameDay property. Places hasn't gaps`` gameDay =
+        
+        let places = 
+            gameDay 
+            |> GameDay.teams
+            |> Seq.map (GameDay.getPlace gameDay)
+            |> Seq.distinct
+            |> Seq.sort
+            
+        let totalRange = 
+            
+            places
+            |> Seq.reduce (fun p1 p2 -> if PositiveNum.next p1.To = p2.From then {From = p1.From; To = p2.To} else p1)
+            
+        let teamsCount =
+            gameDay |> GameDay.teams |> Seq.length
+            
+        totalRange =
+            {
+                From = PositiveNum.numOne
+                To = teamsCount |> PositiveNum.ofInt |> okValueOrThrow 
+            }
+        
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<GameDayType>|])>]
+    let ``GameDay property. Team from the first place is always head of list`` gameDay =
+        
+        let (_, _, place) = 
+            gameDay
+            |> GameDay.getRating
+            |> List.head
+            
+        place.From = PositiveNum.numOne
+        
+    [<Property(QuietOnSuccess = true, MaxTest = 10, Arbitrary = [|typeof<GameDayType>|])>]
+    let ``GameDay property. Game day rating is equal to rating with difficult questions with threshold same as teams count`` gameDay =
+        
+        let gameDayRating =
+            gameDay
+            |> GameDay.getRating
+            
+        let threshold = gameDay |> GameDay.teams |> Seq.length |> Converter.rightAnswerFromInt
+            
+        let filteredRating =
+            gameDay
+            |> GameDay.getRatingOnDifficultQuestions threshold
+            
+        gameDayRating = filteredRating

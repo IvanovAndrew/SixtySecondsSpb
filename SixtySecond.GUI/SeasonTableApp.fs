@@ -57,7 +57,7 @@ let validateGamesToCount (seasonTable : SeasonTable) games =
 
 let showTable count model = 
     let filtered = 
-        let teamRating i (team, rating) = 
+        let teamRating i (team, rating, place) = 
             {
                 Id = team.ID |> Utils.PositiveNum.value
                 Name = team.Name |> Utils.NoEmptyString.value

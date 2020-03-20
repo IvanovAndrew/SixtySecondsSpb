@@ -1,11 +1,10 @@
 ﻿module Domain
 
 open System
-open System
-open System.Numerics
 open System.Text
 open Utils
 open PositiveNum
+open Utils
 
 
 type Team = 
@@ -27,6 +26,14 @@ type Place =
         From : PositiveNum
         To : PositiveNum
     }
+    
+module Place =
+    
+    let toString place =
+        if place.From = place.To then sprintf "%d" <| PositiveNum.value place.From
+        else sprintf "%d-%d" <| PositiveNum.value place.From <| PositiveNum.value place.To
+        
+    
 
 type Answer = 
     | Right 
@@ -80,6 +87,46 @@ type GameDay =
         Answers : Map<Team, Answers>
         PackageSize : PositiveNum
     }
+    
+type TeamRatingPosition<'a> = Team * 'a * Place
+type GameDayRating = TeamRatingPosition<int<RightAnswer>> list
+type SeasonRating = TeamRatingPosition<decimal<Point>> list
+
+module Rating =
+    
+    let fromSeq (input : ((Team * _) seq)) =
+        
+        let proc (acc, fromPlace) group =
+            
+            let place =
+                let toPlace =
+                
+                    let groupLength = group |> Seq.length
+                    if groupLength <= 1 then fromPlace
+                    else
+                        groupLength - 1
+                        |> PositiveNum.ofInt
+                        |> Result.valueOrException
+                        |> PositiveNum.add fromPlace 
+            
+                {From = fromPlace; To = toPlace}
+                
+            
+            let newGroup = 
+                group
+                |> Seq.map (fun (team, rating) -> team, rating, place)
+                |> Seq.append acc
+                
+            newGroup, PositiveNum.next place.To
+            
+        input
+        |> Seq.groupBy (fun (_, rating) -> rating)
+        |> Seq.sortByDescending (fun (key, _) -> key)
+        |> Seq.map snd
+        |> Seq.fold proc (Seq.empty, PositiveNum.numOne)
+        |> fst
+        |> List.ofSeq
+        
 
 module GameDay = 
         
@@ -110,13 +157,13 @@ module GameDay =
             return {gameDay with Answers = newAnswers}
         }
         
-        
+    /// Team played at game day
     let teams gameDay = 
         gameDay.Answers
         |> Map.toSeq
         |> Seq.map fst
         
-    /// Did team A answer question Q
+    /// Did team A give right answer question Q
     let getAnswer gameDay team questionNumber = 
             
         gameDay.Answers 
@@ -134,7 +181,7 @@ module GameDay =
         |> Seq.sumBy Answer.toRightAnswer
 
     /// Отставание команды A от лидера по состоянию на вопрос Q
-    let getDistanceFromTheFirstPlace gameDay team questionNumber = 
+    let getGapFromTheFirstPlace gameDay team questionNumber = 
             
         let totalAnswered' = totalAnswered gameDay questionNumber
         let teamAnsweredOn = totalAnswered' team 
@@ -152,28 +199,17 @@ module GameDay =
     let getPlaceAfterQuestion gameDay team questionNumber = 
         
         let totalAnswered' = totalAnswered gameDay questionNumber 
-        let threshold = totalAnswered' team 
 
-        let processTeam (placeUp, placeDown) otherTeam = 
-            
-            if otherTeam = team then placeUp, placeDown
-            else 
-                let answered = totalAnswered' otherTeam
-                
-                if answered > threshold then placeUp |> PositiveNum.next, placeDown |> PositiveNum.next
-                elif answered = threshold then placeUp, placeDown |> PositiveNum.next
-                else placeUp, placeDown
-
-
-        let placeUp, placeDown = 
+        let rating = 
             gameDay
             |> teams
-            |> Seq.fold processTeam (PositiveNum.numOne, PositiveNum.numOne)
-            
-        {
-            From = placeUp
-            To = placeDown
-        }
+            |> Seq.map (fun team -> team, totalAnswered' team)
+            |> Rating.fromSeq
+        
+        let (_, _, place) = 
+            rating
+            |> List.find (fun (t, _, _) -> t = team)
+        place
         
     let getPlace gameDay team =
         getPlaceAfterQuestion gameDay team gameDay.PackageSize
@@ -186,23 +222,23 @@ module GameDay =
         |> Seq.sumBy Answer.toRightAnswer
 
     
-    let leadingTeams n gameDay = 
+    
+
+    let findDifficultQuestion gameDay =
         
-        let q = PositiveNum.value n
+        gameDay.PackageSize
+        |> PositiveNum.createNaturalRange
+        |> Seq.sortBy (fun q -> rightAnswersOnQuestion gameDay q)
+        |> Seq.head
 
-        gameDay
-        |> teams
-        |> Seq.groupBy (fun t -> totalAnswered gameDay gameDay.PackageSize t)
-        |> Seq.sortByDescending fst
-        |> Seq.fold (fun res group -> 
-                            if q > Seq.length res 
-                            then group |> snd |> Seq.append res 
-                            else res) Seq.empty
-
-    /// 
-    let getWinnerTeam gameDay = leadingTeams PositiveNum.numOne gameDay
-
-
+    let findDifficultQuestionWithRightAnswer gameDay =
+        
+        gameDay.PackageSize
+        |> PositiveNum.createNaturalRange
+        |> Seq.filter (fun q -> rightAnswersOnQuestion gameDay q > 0<RightAnswer>)
+        |> Seq.sortBy (fun q -> rightAnswersOnQuestion gameDay q)
+        |> Seq.head
+    
     /// 
     let getDifficultQuestions threshold gameDay = 
 
@@ -215,8 +251,9 @@ module GameDay =
         gameDay.PackageSize
         |> PositiveNum.createNaturalRange
         |> Seq.filter isDifficult
-
-    let getRatingOnDifficultQuestions threshold gameDay = 
+        
+    
+    let getRatingOnDifficultQuestions threshold gameDay : GameDayRating = 
         
         let questions = getDifficultQuestions threshold gameDay
 
@@ -229,12 +266,31 @@ module GameDay =
         gameDay
         |> teams
         |> Seq.map (fun t -> t, answeredOnDifficultQuestions t)
-        |> Seq.sortByDescending (fun (_, a) -> a)
+        |> Rating.fromSeq
+        
+    let getRating gameDay : GameDayRating =
+            
+        gameDay
+        |> teams
+        |> Seq.map (fun team -> team, totalAnswered gameDay gameDay.PackageSize team)
+        |> Rating.fromSeq
+        
+    let leadingTeams topN gameDay = 
+        
+        let q = PositiveNum.value topN
+
+        gameDay
+        |> getRating
+        |> Seq.takeWhile (fun (_, _, place) -> place.From <= topN)
+        |> Seq.map (fun (team, _, _) -> team)
+
+    /// 
+    let getWinnerTeam gameDay = leadingTeams PositiveNum.numOne gameDay
 
 type SeasonTable = 
     {
         Results : Map<Team, decimal<Point> seq>
-        Table : (Team * decimal<Point>) seq
+        Table : SeasonRating
         GamesCount : PositiveNum
     }
 
@@ -243,8 +299,18 @@ module SeasonTable =
     let ofSeq data = 
         
         let create gamesCount = 
+            
+            let table : SeasonRating = 
+                
+                let teamWithRating = 
+                    data
+                    |> Seq.map (fun (team, rating) -> team, rating |> Seq.sum)
+                    
+                teamWithRating
+                |> Rating.fromSeq
+            
             {
-                Table = data |> Seq.map (fun (team, rating) -> team, rating |> Seq.sum) |> Seq.sortByDescending snd
+                Table = table 
                 Results = data |> Map.ofSeq
                 GamesCount = gamesCount
             }
@@ -260,7 +326,7 @@ module SeasonTable =
         |> Result.map create
 
 
-    let topNResult resultsToCount seasonTable = 
+    let topNResult resultsToCount seasonTable : SeasonRating = 
             
         let topResults allResults =
             
@@ -271,17 +337,15 @@ module SeasonTable =
                     else resultsToCount
                 t |> PositiveNum.value
             
-            let topResults = 
-                if gamesToCount > Seq.length allResults 
-                then allResults
-                else allResults |> Seq.sortByDescending id |> Seq.take gamesToCount
-                    
-            topResults |> Seq.sum
-
+            allResults
+            |> Seq.sortByDescending id 
+            |> Seq.take gamesToCount
+            |> Seq.sum
+        
         seasonTable.Results
         |> Map.toSeq
         |> Seq.map (fun (team, results) -> team, topResults results)
-        |> Seq.sortByDescending snd
+        |> Rating.fromSeq
         
         
         

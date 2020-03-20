@@ -3,34 +3,74 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:SixtySeconds.Views"
         mc:Ignorable="d"
-        Title="Game day" Width="500" Height="500"
+        Title="Game day" Width="650" Height="500"
         Icon="Images/favicon.ico">
     <Window.Resources>
         <ResourceDictionary Source="ResourceDictionary.xaml"></ResourceDictionary>
     </Window.Resources>
     <TabControl>
-        <TabItem Width="225" Style="{StaticResource TabItem}">
+        <TabItem Style="{StaticResource TabItem}">
             <TabItem.Header>
                 <StackPanel Orientation="Horizontal">
                     <Image Source="Images/chart.ico" Margin="10 0"/>
                     <TextBlock Text="Charts"/>
                 </StackPanel>
             </TabItem.Header>
-            <StackPanel>
-                <TextBlock Text="{Binding ShowChartTitle}" Width="200" Style="{StaticResource TextBlock}"/>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Team IDs" Style="{StaticResource TextBlock}"/>
-                    <TextBox Text="{Binding TeamIds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
+            <StackPanel Orientation="Horizontal">
+                <StackPanel Width="400">
+                    <StackPanel Orientation="Horizontal">
+                        <CheckBox Content="Filter questions" IsChecked="{Binding FilterQuestions}" Margin="10"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding ThresholdVisibility}">
+                            <TextBlock Text="{Binding QuestionThreshold, StringFormat='Questions rating {0}'}" Style="{StaticResource TextBlock}" Margin="0" Width="125"/>
+                            <Slider Value="{Binding QuestionThreshold}" 
+                                    TickFrequency="1" 
+                                    Minimum="{Binding MinQuestionThreshold}" 
+                                    Maximum="{Binding MaxQuestionThreshold}"
+                                    Width="125"
+                                    IsSnapToTickEnabled="True" Margin="10"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding QuestionsCount, StringFormat='Questions counted {0}'}" Style="{StaticResource TextBlock}" Width="150" />
+                        <Button Command="{Binding ShowGameDayTable}"
+                                Style="{StaticResource Button}"
+                                Content="Update table" Margin="10"/>
+                    </StackPanel>
+                    
+                    <ListView ItemsSource="{Binding GameDayTable}" Height="400" Margin="10">
+                        <ListView.View>
+                            <GridView AllowsColumnReorder="True">
+                                <GridViewColumn Header="Place" Width="50"
+                                                DisplayMemberBinding="{Binding Place}" />
+                                <GridViewColumn Width="200" Header="Name">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock TextWrapping="Wrap" Text="{Binding TeamName}" MinWidth="100"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Answers" Width="50"
+                                                DisplayMemberBinding="{Binding Rating}">
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Best teams" Style="{StaticResource TextBlock}"/>
-                    <TextBox Text="{Binding BestTeams, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button Command="{Binding ShowPlacesCharts}" Content="Show places chart" Style="{StaticResource Button}"/>
-                    <Button Command="{Binding ShowAnswersCharts}" Content="Show answers chart" Style="{StaticResource Button}" />
+                <StackPanel>
+                    <TextBlock Text="{Binding ShowChartTitle}" Width="200" Style="{StaticResource TextBlock}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Team IDs" Style="{StaticResource TextBlock}"/>
+                        <TextBox Text="{Binding TeamIds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Best teams" Style="{StaticResource TextBlock}"/>
+                        <TextBox Text="{Binding BestTeams, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource TextBox}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Command="{Binding ShowPlacesCharts}" Content="Show places chart" Style="{StaticResource Button}"/>
+                        <Button Command="{Binding ShowAnswersCharts}" Content="Show answers chart" Style="{StaticResource Button}" />
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </TabItem>

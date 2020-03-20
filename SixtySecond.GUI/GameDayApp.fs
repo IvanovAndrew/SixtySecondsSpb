@@ -7,11 +7,18 @@ open Elmish.WPF
 open SixtySecond.GUI.Settings
 open Utils.PositiveNum
 open SpreadsheetWriter
-open Utils
+
+type RatingType =
+    | All
+    | Threshold of int<RightAnswer>
 
 type Model = 
     {
         GameDay : GameDay
+        RatingType : RatingType
+        Rating : GameDayRating
+        QuestionsCount : int
+        
         ChartTeamIds : string
         BestTeams : string
         ChartsErrorStatus : string option
@@ -30,6 +37,25 @@ type ShowChartsInput =
 type ChartType =
     | Answers of ShowChartsInput
     | Places of ShowChartsInput
+
+let questionsRating gameDay =
+    gameDay.PackageSize
+    |> PositiveNum.createNaturalRange
+    |> Seq.map (GameDay.rightAnswersOnQuestion gameDay)
+
+let minThresholdValue = questionsRating >> Seq.min
+let maxThresholdValue = questionsRating >> Seq.max
+
+let updateRating ratingType gameDay =
+    
+    let f = 
+        match ratingType with
+        | All -> GameDay.getRating
+        | Threshold threshold -> GameDay.getRatingOnDifficultQuestions threshold
+        
+    gameDay
+    |> f
+    |> List.ofSeq
     
 let defaultSheetOptions = 
         {
@@ -43,6 +69,9 @@ let defaultSheetOptions =
 let init gameDay =
     {
         GameDay = gameDay
+        RatingType = All
+        QuestionsCount = gameDay.PackageSize |> PositiveNum.value
+        Rating = updateRating All gameDay 
         ChartTeamIds = ""
         BestTeams = ""
         ChartsErrorStatus = None
@@ -86,23 +115,20 @@ let firstQuestionRowChanged row model =
         {model with SheetOptions = {model.SheetOptions with Distance = row}}
     
 
-let writeToSpreadSheetButtonAvailable window = 
+let writeToSpreadSheetButtonAvailable model = 
     
     result{
-        let! spreadsheetId = window.SpreadSheetId |> NoEmptyString.ofString
-        let! sheetName = window.SheetName |> NoEmptyString.ofString
-        let! teamId = window.TeamId |> PositiveNum.ofString
+        let! spreadsheetId = model.SpreadSheetId |> NoEmptyString.ofString
+        let! sheetName = model.SheetName |> NoEmptyString.ofString
+        let! teamId = model.TeamId |> PositiveNum.ofString
         
         let teamOption = 
-            window.GameDay |> GameDay.teams |> Seq.tryFind(fun team -> team.ID = teamId)
+            model.GameDay |> GameDay.teams |> Seq.tryFind(fun team -> team.ID = teamId)
         
-        return! 
-            match teamOption with
-            | Some team -> 
-                team
-                |> DataToWrite.fromGameDay window.GameDay 
-                |> Ok
-            | None -> Error (sprintf "Team with ID %d not found" <| PositiveNum.value teamId) 
+        return!
+            teamOption
+            |> Result.ofOption (sprintf "Team with ID %d not found" <| PositiveNum.value teamId)
+            |> Result.map (DataToWrite.fromGameDay model.GameDay) 
     }
 
 let validateTeamIds (gameDay : GameDay) teamIds = 
@@ -175,6 +201,8 @@ let showChart chartType gameDay =
         |> Chart.showPlacesQuestionByQuestion gameDay
         
         
+
+        
 let showErrorMessage status =
 
     status
@@ -211,6 +239,10 @@ type Message =
     | ShowChart of ChartType  
     | GoogleSpreadsheetCloseRequested
     
+    | RatingTypeChanged of bool 
+    | QuestionThresholdChanged of int<RightAnswer>
+    | UpdateRatingTable
+    
     | TeamIdEntered of team : string
     | SpreadsheetIdEntered of url : string
     | SpreadsheetNameEntered of sheetId : string
@@ -224,6 +256,35 @@ type Message =
 
 let update message model = 
     match message with
+    | RatingTypeChanged filter ->
+        let rating =
+            if filter then 
+                let teamsCount = 
+                    model.GameDay
+                    |> GameDay.teams
+                    |> Seq.length
+                teamsCount / 2
+                |> Converter.rightAnswerFromInt
+                |> Threshold
+            else All
+                    
+        {model with RatingType = rating}
+    | QuestionThresholdChanged threshold -> { model with RatingType = Threshold threshold}
+        
+    | UpdateRatingTable ->
+        
+        let newQuestionsCount =
+            match model.RatingType with
+            | All -> model.GameDay.PackageSize |> PositiveNum.value
+            | Threshold threshold -> 
+                model.GameDay.PackageSize
+                |> PositiveNum.createNaturalRange
+                |> Seq.filter (fun q ->
+                        let ra = q |> GameDay.rightAnswersOnQuestion model.GameDay
+                        ra <= threshold)
+                |> Seq.length
+        {model with Rating = updateRating model.RatingType model.GameDay; QuestionsCount = newQuestionsCount}
+        
     | CustomTeamsEntered customTeams -> {model with ChartTeamIds = customTeams} |> withClearChartErrorMessage
     | BestTeamsCountEntered bestTeamsCount -> updateBestTeams bestTeamsCount model |> withClearChartErrorMessage
     | ShowChart input -> 
@@ -248,7 +309,7 @@ let update message model =
         {model with SpreadSheetId = spreadSheetId}
         |> withClearStatus
             
-    | SpreadsheetNameEntered sheetName -> {model with SheetName = sheetName; Status = None}
+    | SpreadsheetNameEntered sheetName -> {model with SheetName = sheetName} |> withClearStatus
     | TeamAnsweredColumnChanged newValue -> model |> teamAnsweredColumnChanged newValue |> withClearStatus
     | RightAnswersColumnChanged newValue -> model |> rightAnswersColumnChanged newValue |> withClearStatus
     | PlacesColumnChanged newValue -> model |> placesColumnChanged newValue |> withClearStatus
@@ -281,13 +342,40 @@ let update message model =
 
 let bindings (wrap : Message -> 'a) = 
     (fun () -> [
+        "FilterQuestions" |> Binding.twoWay(
+                                             (fun m -> match m.RatingType with Threshold _ -> true | _ -> false),
+                                              RatingTypeChanged >> wrap
+                                         )
+        
+        "ThresholdVisibility" |> Binding.oneWay (fun m -> match m.RatingType with Threshold _ -> Visibility.Visible | _ -> Visibility.Collapsed)
+            
+        "GameDayTable" |> Binding.subModelSeq(
+                             (fun m -> m.Rating),
+                             (fun (team, _, _) -> team.ID),
+                             (fun() -> [
+                                    "TeamName" |> Binding.oneWay (fun (_, (team, _, _)) -> team.Name |> NoEmptyString.value)
+                                    "Rating" |> Binding.oneWay (fun (_, (_, rating, _)) -> rating)
+                                    "Place" |> Binding.oneWay (fun (_, (_, _, place)) -> place |> Place.toString)
+                                    ]
+                             )
+                                )
+        "QuestionThreshold" |> Binding.twoWay(
+            (fun m -> (match m.RatingType with All -> maxThresholdValue m.GameDay | Threshold t -> t) |> Converter.toInt |> float ),
+            int >> Converter.rightAnswerFromInt >> QuestionThresholdChanged >> wrap
+        )
+        
+        "MinQuestionThreshold" |> Binding.oneWay(fun m -> minThresholdValue m.GameDay |> int |> float)
+        "MaxQuestionThreshold" |> Binding.oneWay(fun m -> maxThresholdValue m.GameDay |> int |> float)
+        
+        "QuestionsCount" |> Binding.oneWay (fun m -> m.QuestionsCount)
+        
+        "ShowGameDayTable" |> Binding.cmd(UpdateRatingTable |> wrap)
         "ShowChartTitle" |> Binding.oneWay (fun m -> sprintf "Show chart for game %s" <| NoEmptyString.value m.GameDay.Name)
-        "TeamIds" |> Binding.twoWayValidate
-                    (
-                        (fun m -> m.ChartTeamIds),
-                        CustomTeamsEntered >> wrap,
-                        (fun m -> validateTeamIds m.GameDay m.ChartTeamIds)
-                    )
+        "TeamIds" |> Binding.twoWayValidate(
+                                                (fun m -> m.ChartTeamIds),
+                                                CustomTeamsEntered >> wrap,
+                                                (fun m -> validateTeamIds m.GameDay m.ChartTeamIds)
+                                            )
         "BestTeams" |> Binding.twoWayValidate
                     (
                         (fun m -> m.BestTeams),
@@ -370,4 +458,6 @@ let bindings (wrap : Message -> 'a) =
                                                 model.Status 
                                                 |> Option.map(function Ok m -> m | Error e -> e) 
                                                 |> Option.defaultValue "")
+        
+        
     ])

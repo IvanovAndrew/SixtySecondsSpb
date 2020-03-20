@@ -58,7 +58,11 @@ module Result =
     let toOption result =
         match result with
         | Ok value -> Some value
-        | Error _ -> None 
+        | Error _ -> None
+        
+    let valueOrException = function
+        | Ok v -> v
+        | Error e -> failwith <| sprintf "%A" e
 
     let combine results =
         
@@ -126,7 +130,10 @@ module PositiveNum =
 
     let previous (PositiveNum i) = i - 1 |> ofInt
 
-    let next (PositiveNum i) = PositiveNum(i + 1)
+    
+    
+    let add (PositiveNum one) (PositiveNum two) = PositiveNum (one + two)
+    let next = add  numOne 
         
     let createRange first step last =
         

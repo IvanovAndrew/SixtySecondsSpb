@@ -34,7 +34,7 @@ module DataToWrite =
             TeamAnswers = allQuestions |> Seq.map (GameDay.getAnswer gameDay team)
             RightAnswersOn = allQuestions |> Seq.map (GameDay.rightAnswersOnQuestion gameDay)
             Places = allQuestions |> Seq.map (GameDay.getPlaceAfterQuestion gameDay team)
-            Distance = allQuestions |> Seq.map (GameDay.getDistanceFromTheFirstPlace gameDay team)
+            Distance = allQuestions |> Seq.map (GameDay.getGapFromTheFirstPlace gameDay team)
         }
         
 

@@ -68,9 +68,9 @@ let showTotalTable data topN =
 
     let columns = 
             
-        let toColumnFormat (table : (Team * _) seq )= 
+        let toColumnFormat (table : SeasonRating) = 
             table 
-            |> Seq.map (fun (team, points) -> team.Name |> NoEmptyString.value, points)
+            |> Seq.map (fun (team, points, _) -> team.Name |> NoEmptyString.value, points)
 
         [topNResultTable; data.Table]
         |> Seq.map toColumnFormat
