@@ -4,13 +4,13 @@ open FSharp.Data
 
 open Utils
 open Domain
-open Utils
 
 type ParsingError =
     | MissingSheetName
     | MissingTournamentName
     | MissingAnswersCount
     | TeamParsingError of string
+    | AnswersParsingError of string
     | SheetNotFound of string
     | DuplicatedTeam of Team
     | SeasonHasNotStarted
@@ -31,6 +31,7 @@ let errorToString = function
         | MissingSheetName -> "Missing sheet name"
         | MissingTournamentName -> "Missing tournament name"
         | MissingAnswersCount -> "Missing answers count"
+        | AnswersParsingError err -> sprintf "Can not answers. %s" err
         | TeamParsingError err -> sprintf "Can not parse team. %s" err
         | SheetNotFound sheetName -> sprintf "Sheet %s not found" sheetName
         | SeasonHasNotStarted -> "Season hasn't started yet"
@@ -212,17 +213,20 @@ let parse gameName (document : HtmlDocument) =
                 |> HtmlNode.innerText
 
             let innerTextOfNode' = innerTextOfNode node
-
-            let answers = 
                 
-                options.AnswersColumns
-                |> List.map (innerTextOfNode' >> ((=) rightAnswer) >> Answer.ofBool)
-                |> Answers.ofSeq
+            result {
+                let! team =
+                    innerTextOfNode'
+                    |> parseTeam options.IdColumn options.NameColumn 
                 
-            innerTextOfNode'
-            |> parseTeam options.IdColumn options.NameColumn
-            |> Result.map (fun t -> (t, answers))
-
+                let answers = 
+                
+                    options.AnswersColumns
+                    |> List.map (innerTextOfNode' >> ((=) rightAnswer) >> Answer.ofBool)
+                    |> Answers.ofSeq
+                    
+                return team, answers
+            }
                 
         let filterBySheetId n = 
                     

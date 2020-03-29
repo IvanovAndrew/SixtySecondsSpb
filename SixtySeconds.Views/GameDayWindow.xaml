@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Game day" Width="650" Height="500"
+        Title="Game day" Width="750" Height="600"
         Icon="Images/favicon.ico">
     <Window.Resources>
         <ResourceDictionary Source="ResourceDictionary.xaml"></ResourceDictionary>
@@ -38,7 +38,7 @@
                                 Content="Update table" Margin="10"/>
                     </StackPanel>
                     
-                    <ListView ItemsSource="{Binding GameDayTable}" Height="400" Margin="10">
+                    <ListView ItemsSource="{Binding GameDayTable}" Height="400" Margin="10" SelectedItem="{Binding SelectionChanged}">
                         <ListView.View>
                             <GridView AllowsColumnReorder="True">
                                 <GridViewColumn Header="Place" Width="50"
@@ -70,6 +70,50 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Command="{Binding ShowPlacesCharts}" Content="Show places chart" Style="{StaticResource Button}"/>
                         <Button Command="{Binding ShowAnswersCharts}" Content="Show answers chart" Style="{StaticResource Button}" />
+                    </StackPanel>
+                    <StackPanel Visibility="{Binding TeamGameDayInfoVisibility}" Background="Silver" Width="350">
+                        <TextBlock FontWeight="Bold" Style="{StaticResource TextBlock}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="Team: {0} ({1})">
+                                    <Binding Path="TeamName"/>
+                                    <Binding Path="TeamIDChoosen"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource TextBlock}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="Best place: {0} (after question №{1})">
+                                    <Binding Path="BestPlace"/>
+                                    <Binding Path="BestPlaceQuestion"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource TextBlock}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="Worst place: {0} (after question №{1})">
+                                    <Binding Path="WorstPlace"/>
+                                    <Binding Path="WorstPlaceQuestion"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                        <TextBlock Text="{Binding BestStrike, StringFormat='Right answers in a row: {0}'}" Style="{StaticResource TextBlock}"/>
+                        <TextBlock Text="{Binding WorstStrike, StringFormat='Wrong answers in a row: {0}'}" Style="{StaticResource TextBlock}"/>
+                        <TextBlock Style="{StaticResource TextBlock}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="Difficult answered question: №{0} (only {1} right answers)">
+                                    <Binding Path="DifficultAnsweredQuestion"/>
+                                    <Binding Path="DifficultAnsweredQuestionCount"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource TextBlock}">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="Simplest unanswered question: №{0} ({1} right answers)">
+                                    <Binding Path="SimplestWrongAnsweredQuestion"/>
+                                    <Binding Path="SimplestWrongAnsweredQuestionCount"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>

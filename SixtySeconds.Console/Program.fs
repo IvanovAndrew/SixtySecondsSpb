@@ -1,13 +1,10 @@
 ﻿open Domain
-open System
-open Utils
 open Utils
 open Utils.PositiveNum
 open Chart
 open Config
 open Parser
 open SpreadsheetWriter
-open Utils
 
 type WriteMode = 
     | ReadOnly 
@@ -111,7 +108,7 @@ let processGameDay options gameDay =
                 
                 let teams = 
                     [team]
-                    |> Seq.append (GameDay.leadingTeams topN gameDay)
+                    |> Seq.append (gameDay |> Rating.ofGameDay |> Rating.leadingTeams topN)
                     |> Seq.distinct
 
                 showPlacesQuestionByQuestion gameDay teams

@@ -11,6 +11,8 @@
     <Compile Include="GameDayTests.fs" />
     <Compile Include="PlayoffTests.fs" />
     <Compile Include="ExtensionTests.fs" />
+    <Compile Include="RatingTests.fs" />
+    <Compile Include="TeamTests.fs" />
   </ItemGroup>
 
   <ItemGroup>

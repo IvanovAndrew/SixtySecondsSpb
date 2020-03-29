@@ -1,12 +1,30 @@
-module GameDayApp
+﻿module GameDayApp
 
 open System.Windows
+
 open Domain
-open Utils
 open Elmish.WPF
-open SixtySecond.GUI.Settings
+
+open Utils
 open Utils.PositiveNum
+open SixtySecond.GUI.Settings
 open SpreadsheetWriter
+
+module TeamInfoApp =
+    
+    let teamName (team : Team) = team.Name |> NoEmptyString.value
+    let bestPlace gameDay team = team |> Team.bestPlace gameDay |> fst |> Place.toString
+    let bestPlaceQuestion gameDay team = team |> Team.bestPlace gameDay |> snd |> PositiveNum.value
+    let worstPlace gameDay team = team |> Team.worstPlace gameDay |> fst |> Place.toString
+    let worstPlaceQuestion gameDay team = team |> Team.worstPlace gameDay |> snd |> PositiveNum.value
+    let bestStrike gameDay = Team.bestStrike gameDay
+    let worstStrike gameDay = Team.worstStrike gameDay
+    let difficultAnsweredQuestion gameDay team = Team.difficultAnswered gameDay team |> fst |> PositiveNum.value
+    let difficultAnsweredQuestionCount gameDay team = Team.difficultAnswered gameDay team |> snd |> Converter.toInt
+    let simplestWrongAnsweredQuestion gameDay team = Team.simplestWrongAnswered gameDay team  |> fst |> PositiveNum.value
+    let simplestWrongAnsweredQuestionCount gameDay team = Team.simplestWrongAnswered gameDay team  |> snd |> Converter.toInt
+    
+    
 
 type RatingType =
     | All
@@ -27,6 +45,8 @@ type Model =
         SheetName : string
         SheetOptions : SheetOptions
         Status : Result<string, string> option
+        
+        SelectedTeam : Team option
     }
     
 type ShowChartsInput =
@@ -39,9 +59,9 @@ type ChartType =
     | Places of ShowChartsInput
 
 let questionsRating gameDay =
-    gameDay.PackageSize
-    |> PositiveNum.createNaturalRange
-    |> Seq.map (GameDay.rightAnswersOnQuestion gameDay)
+    gameDay
+    |> GameDay.allQuestions
+    |> Seq.map (Question.rightAnswers gameDay)
 
 let minThresholdValue = questionsRating >> Seq.min
 let maxThresholdValue = questionsRating >> Seq.max
@@ -50,8 +70,11 @@ let updateRating ratingType gameDay =
     
     let f = 
         match ratingType with
-        | All -> GameDay.getRating
-        | Threshold threshold -> GameDay.getRatingOnDifficultQuestions threshold
+        | All -> Rating.ofGameDay
+        | Threshold threshold ->
+                fun gd -> 
+                    let difficultQuestions = Question.getDifficultQuestions threshold gd 
+                    gd |> Rating.ofGameDayWithFilter difficultQuestions 
         
     gameDay
     |> f
@@ -80,7 +103,13 @@ let init gameDay =
         TeamId = ""
         SheetOptions = defaultSheetOptions
         Status = None
+        
+        SelectedTeam = None
     }
+    
+
+    
+    
 
 let updateBestTeams bestTeams model = {model with BestTeams = bestTeams}
 let withClearChartErrorMessage model = { model with ChartsErrorStatus = None }
@@ -134,15 +163,11 @@ let writeToSpreadSheetButtonAvailable model =
 let validateTeamIds (gameDay : GameDay) teamIds = 
         
     let findTeam teamId = 
-        let teamOption = 
             gameDay
             |> GameDay.teams
             |> Seq.tryFind(fun t -> t.ID = teamId)
+            |> Result.ofOption "Team not found"
     
-        match teamOption with 
-        | Some team -> Result.Ok team
-        | None -> Error "Team not found"
-
     teamIds
     |> String.splitByChar [|';'; ' '|]
     |> Array.filter (fun str -> match NoEmptyString.ofString str with Ok _ -> true | Error _ -> false)
@@ -181,11 +206,12 @@ let showChart chartType gameDay =
         
         match input with
         | CustomTeamsOnly customTeams -> customTeams |> Seq.ofList
-        | BestTeamsOnly bestTeams -> gameDay |> GameDay.leadingTeams bestTeams 
+        | BestTeamsOnly bestTeams -> gameDay |> Rating.ofGameDay |> Rating.leadingTeams bestTeams 
         | CustomTeamsAndBestTeams (customTeams, bestTeams) ->  
             
             gameDay
-            |> GameDay.leadingTeams bestTeams 
+            |> Rating.ofGameDay
+            |> Rating.leadingTeams bestTeams 
             |> Seq.append customTeams
             |> Seq.distinct
         
@@ -253,6 +279,8 @@ type Message =
     | FirstQuestionColumnChanged of newValue : string
     | WriteToSpreadsheet of data : DataToWrite
     
+    | TeamSelected of PositiveNum option
+    
 
 let update message model = 
     match message with
@@ -280,7 +308,7 @@ let update message model =
                 model.GameDay.PackageSize
                 |> PositiveNum.createNaturalRange
                 |> Seq.filter (fun q ->
-                        let ra = q |> GameDay.rightAnswersOnQuestion model.GameDay
+                        let ra = q |> Question.rightAnswers model.GameDay
                         ra <= threshold)
                 |> Seq.length
         {model with Rating = updateRating model.RatingType model.GameDay; QuestionsCount = newQuestionsCount}
@@ -293,6 +321,20 @@ let update message model =
         |> showChart input
 
         model
+    | TeamSelected teamId ->
+        
+        let selectedTeam =
+            
+            let findTeam id = 
+                model.GameDay
+                |> GameDay.teams
+                |> Seq.filter (fun team -> team.ID = id)
+                |> Seq.tryHead
+            
+            teamId
+            |> Option.bind findTeam
+            
+        { model with SelectedTeam = selectedTeam}
 
     | TeamIdEntered teamId -> {model with TeamId = teamId}
         
@@ -328,18 +370,13 @@ let update message model =
             |> Result.map (fun _ -> "Data is written")
             |> Some
             
-        match status with
-        | Some result ->
-            match result with 
-            | Ok _ -> saveOptions model.SpreadSheetId model.SheetOptions
-            | Error _ -> ()
-        | None -> ()
+        status
+        |> Option.iter (function Ok _ -> saveOptions model.SpreadSheetId model.SheetOptions | Error _ -> ())
 
         {model with Status = status}
     
     | GoogleSpreadsheetCloseRequested -> model
     
-
 let bindings (wrap : Message -> 'a) = 
     (fun () -> [
         "FilterQuestions" |> Binding.twoWay(
@@ -370,6 +407,35 @@ let bindings (wrap : Message -> 'a) =
         "QuestionsCount" |> Binding.oneWay (fun m -> m.QuestionsCount)
         
         "ShowGameDayTable" |> Binding.cmd(UpdateRatingTable |> wrap)
+        
+        "SelectionChanged" |> Binding.subModelSelectedItem(
+                                                              "GameDayTable",
+                                                              (fun m -> m.SelectedTeam |> Option.map (fun team -> team.ID)),
+                                                              TeamSelected >> wrap
+                                                          )
+        
+        "TeamGameDayInfoVisibility" |> Binding.oneWay (fun m -> match m.SelectedTeam with Some team -> Visibility.Visible | _ -> Visibility.Hidden)
+        "TeamName" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map TeamInfoApp.teamName |> Option.defaultValue "")
+        "TeamIDChoosen" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (fun team -> team.ID |> PositiveNum.value) |> Option.defaultValue 0)
+        "BestPlace" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (TeamInfoApp.bestPlace m.GameDay) |> Option.defaultValue "")
+        "BestPlaceQuestion" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (TeamInfoApp.bestPlaceQuestion m.GameDay) |> Option.defaultValue 0)
+        "WorstPlace" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (TeamInfoApp.worstPlace m.GameDay) |> Option.defaultValue "")
+        "WorstPlaceQuestion" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (TeamInfoApp.worstPlaceQuestion m.GameDay) |> Option.defaultValue 0)
+        "BestStrike" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (TeamInfoApp.bestStrike m.GameDay) |> Option.defaultValue 0)
+        "WorstStrike" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (TeamInfoApp.worstStrike m.GameDay) |> Option.defaultValue 0)
+        "DifficultAnsweredQuestion" |> Binding.oneWay (
+                                                          fun m -> m.SelectedTeam
+                                                                   |> Option.map (TeamInfoApp.difficultAnsweredQuestion m.GameDay)
+                                                                   |> Option.defaultValue 0
+                                                      )
+        "DifficultAnsweredQuestionCount" |> Binding.oneWay (
+                                                          fun m -> m.SelectedTeam
+                                                                   |> Option.map (TeamInfoApp.difficultAnsweredQuestionCount m.GameDay)
+                                                                   |> Option.defaultValue 0
+                                                      )
+        "SimplestWrongAnsweredQuestion" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (TeamInfoApp.simplestWrongAnsweredQuestion m.GameDay) |> Option.defaultValue 0)
+        "SimplestWrongAnsweredQuestionCount" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (TeamInfoApp.simplestWrongAnsweredQuestionCount m.GameDay) |> Option.defaultValue 0)
+        
         "ShowChartTitle" |> Binding.oneWay (fun m -> sprintf "Show chart for game %s" <| NoEmptyString.value m.GameDay.Name)
         "TeamIds" |> Binding.twoWayValidate(
                                                 (fun m -> m.ChartTeamIds),

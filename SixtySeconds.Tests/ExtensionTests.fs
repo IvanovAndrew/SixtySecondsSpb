@@ -1,4 +1,4 @@
-﻿module SixtySeconds.Tests.ExtensionTests
+﻿namespace ExtensionTests
 
 open FsCheck
 open NUnit.Framework
@@ -18,8 +18,7 @@ module SeqExceptLastExampleTests =
         |> Seq.exceptLast 
         |> should equal []
         
-[<TestFixture>]
-module SeqExceptLastPropertyBasedTests =
+module ``ExceptLast function specification`` = 
     
     open TestUtils
     open FsCheckUtils
@@ -59,8 +58,7 @@ module SeqExceptLastPropertyBasedTests =
         
         lengthBefore - lengthAfter = 1
         
-[<TestFixture>]
-module ResultPropertyBasedTests =
+module ``Result combine function specification`` =
     
     open TestUtils
     open FsCheckUtils

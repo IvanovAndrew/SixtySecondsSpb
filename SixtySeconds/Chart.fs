@@ -1,6 +1,7 @@
 ﻿module Chart
 
 open Domain
+open Domain
 open GoogleChartService
 open Utils
 
@@ -30,9 +31,9 @@ let showPlacesQuestionByQuestion gameDay teams =
     
     let places = 
         let places team = 
-            gameDay.PackageSize 
-            |> PositiveNum.createNaturalRange
-            |> Seq.map (GameDay.getPlaceAfterQuestion gameDay team)
+            gameDay
+            |> GameDay.allQuestions
+            |> Seq.map (Team.getPlaceAfterQuestion gameDay team)
             |> Seq.map (fun p -> p.From |> PositiveNum.value)
 
         teams 
@@ -47,9 +48,9 @@ let showPointsQuestionByQuestion gameDay teams =
 
     let rightAnswers = 
         let answers team = 
-            gameDay.PackageSize
-            |> PositiveNum.createNaturalRange 
-            |> Seq.map (fun q -> GameDay.totalAnswered gameDay q team)
+            gameDay
+            |> GameDay.allQuestions 
+            |> Seq.map (fun q -> Team.totalAnswered gameDay q team)
 
         teams 
         |> Seq.map answers

@@ -1,6 +1,7 @@
 ﻿module SpreadsheetWriter
 
 open Domain
+open Domain
 open Utils
 open SpreadsheetService
 open System
@@ -28,13 +29,14 @@ module DataToWrite =
     
     let fromGameDay gameDay team = 
         let allQuestions = 
-            PositiveNum.createNaturalRange gameDay.PackageSize
+            gameDay
+            |> GameDay.allQuestions
 
         {
-            TeamAnswers = allQuestions |> Seq.map (GameDay.getAnswer gameDay team)
-            RightAnswersOn = allQuestions |> Seq.map (GameDay.rightAnswersOnQuestion gameDay)
-            Places = allQuestions |> Seq.map (GameDay.getPlaceAfterQuestion gameDay team)
-            Distance = allQuestions |> Seq.map (GameDay.getGapFromTheFirstPlace gameDay team)
+            TeamAnswers = allQuestions |> Seq.map (fun q -> Team.getAnswer gameDay q team)
+            RightAnswersOn = allQuestions |> Seq.map (Question.rightAnswers gameDay)
+            Places = allQuestions |> Seq.map (Team.getPlaceAfterQuestion gameDay team)
+            Distance = allQuestions |> Seq.map (Team.getGapFromTheFirstPlace gameDay team)
         }
         
 

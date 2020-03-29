@@ -1,11 +1,11 @@
 ﻿namespace TestUtils
 open Domain
 
-module Utils = 
-    let okValueOrThrow res = 
-        match res with 
-        | Ok value -> value
-        | Error e -> invalidOp e
+module Utils =
+    
+    open Utils
+    let toPositiveNum = PositiveNum.ofInt >> Result.valueOrException
+    let toNoEmptyString = NoEmptyString.ofString >> Result.valueOrException
 
 module FsCheckUtils =
     
@@ -31,7 +31,7 @@ module FsCheckUtils =
             [1 .. 100]
             |> Gen.elements 
             |> Arb.fromGen
-            |> Arb.convert (PositiveNum.ofInt >> okValueOrThrow) PositiveNum.value
+            |> Arb.convert toPositiveNum PositiveNum.value
     
     
     type NonEmptySeq =
@@ -64,34 +64,84 @@ module FsCheckUtils =
             |> Gen.listOfLength 12
             |> Arb.fromGen
     
+    type RightAnswersGenerator =
+        
+        static member RightAnswers =
+            
+            [1..100]
+            |> Gen.elements
+            |> Gen.map (fun length -> Array.create length true)
+            |> Gen.map (Answers.ofBoolSeq)
+            |> Arb.fromGen
+    
+    type AnswersStrikeGenerator =
+        
+        static member AnswersStrike =
+            
+            gen {
+                let! answers =
+                    Arb.generate<Answer>
+                    |> Gen.listOf
+                    |> Gen.map Answers.ofSeq
+                
+                let! strike = Arb.generate<Strike>
+                
+                return strike, answers
+            } |> Arb.fromGen
+    
+    type AnswersGenerator =
+        
+        static member AnswersStrike =
+            
+            Arb.generate<Answer>
+            |> Gen.listOf
+            |> Gen.map Answers.ofSeq
+            |> Arb.fromGen
+            
+    type AnswersAndFirstNElementsGenerator =
+        
+        static member AnswersAndFirstN =
+            
+            gen {
+                let! answers =
+                    Arb.generate<Answer>
+                    |> Gen.nonEmptyListOf
+                    |> Gen.map Answers.ofSeq
+                    
+                let! firstN =
+                    [1..Answers.count answers]
+                    |> Gen.elements
+                    
+                return (answers, firstN)
+            } |> Arb.fromGen
+            
+    
+    
+    let getId =
+        let mutable lastId = 0
+        fun () ->
+            lastId <- lastId + 1
+            lastId |> toPositiveNum 
+    
+    let teamGenerator =
+        Arb.generate<string>
+        |> Gen.filter (String.isEmpty >> not)
+        |> Gen.map (fun s -> getId(), toNoEmptyString s)
+        |> Gen.map (fun (num, name) -> {ID = num; Name = name})
+    
     type GameDayType =
         
         static member GameDays =
-            
-            let getId =
-                let mutable lastId = 0
-                fun () ->
-                    lastId <- lastId + 1
-                    okValueOrThrow <| PositiveNum.ofInt lastId
-            
-            let teamGenerator =
-                Arb.generate<string>
-                |> Gen.filter (String.isEmpty >> not)
-                |> Gen.map (fun s -> getId(), okValueOrThrow <| NoEmptyString.ofString s)
-                |> Gen.map (fun (num, name) -> {ID = num; Name = name})
                 
             let answerGenerator packageSize =
                 Arb.generate<Answer>
                 |> Gen.listOfLength packageSize
-                |> Gen.map Answers.ofSeq
-            
-            
+                |> Gen.map (Answers.ofSeq)
+                
             gen {
                 
-                let teamsCount, packageSize =
-                    match [1..100] |> Gen.elements |> Gen.sample 2 with
-                    | [|first; second|] -> first, second
-                    | x -> failwithf "Wrong generator value %A" x
+                let! teamsCount = Gen.choose (1, 100)
+                let! packageSize = Gen.choose (1, 50)
                 
                 let teams =
                         teamGenerator |> Gen.sample teamsCount |> List.ofArray
@@ -101,12 +151,33 @@ module FsCheckUtils =
                     |> Gen.sample teamsCount |> List.ofArray
                 
                 return {
-                    Tournament = "Generated tournament" |> NoEmptyString.ofString |> okValueOrThrow
-                    Name = System.DateTime.Now.ToString() |> NoEmptyString.ofString |> okValueOrThrow
+                    Tournament = toNoEmptyString "Generated tournament" 
+                    Name = System.DateTime.Now.ToString() |> toNoEmptyString
                     Answers =
                         allAnswers
                         |> List.zip teams
                         |> List.fold (fun map (team, answers) -> map |> Map.add team answers) Map.empty
-                    PackageSize = packageSize |> PositiveNum.ofInt |> okValueOrThrow
+                    PackageSize = packageSize |> toPositiveNum
                 }
+            } |> Arb.fromGen
+            
+    type RatingGenerator =
+        
+        static member Rating =
+            
+            gen {
+                let! teamsCount = Gen.choose (1, 100)
+                
+                let rating() =
+                     Gen.choose (0, 100)
+                     |> Gen.sample 1
+                     |> Array.head
+                
+                let teamsWithRating =
+                        teamGenerator
+                        |> Gen.map (fun t -> t, rating())
+                        |> Gen.sample teamsCount
+                        |> List.ofArray
+                        
+                return teamsWithRating
             } |> Arb.fromGen

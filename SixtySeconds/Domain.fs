@@ -4,7 +4,6 @@ open System
 open System.Text
 open Utils
 open PositiveNum
-open Utils
 
 
 type Team = 
@@ -34,7 +33,6 @@ module Place =
         else sprintf "%d-%d" <| PositiveNum.value place.From <| PositiveNum.value place.To
         
     
-
 type Answer = 
     | Right 
     | Wrong
@@ -57,28 +55,82 @@ module Answer =
     let ofBool isRight = if isRight then Right else Wrong
     let isRight answer = answer = Answer.Right
     let toRightAnswer answer = if isRight answer then 1<RightAnswer> else 0<RightAnswer> 
+
+
+type QuestionNumber = PositiveNum    
+type AnswerOnQuestion = {Number : QuestionNumber; Answer : Answer}
+type Answers = private Answers of (AnswerOnQuestion) list 
+type Strike =
+    | Best
+    | Worst
+
     
-type Answers = private Answers of Answer array    
 module Answers = 
     
-    let ofArray arr = Answers arr
-    let ofBoolArray arr = arr |> Array.map Answer.ofBool |> ofArray
-    let ofSeq seq = seq |> Array.ofSeq |> ofArray
-        
-    let getAnswer questionNumber (Answers a) = 
-        
-        let index = 
-            questionNumber
-            |> PositiveNum.value 
-            |> ((+) -1)
-        
-        if index >= Array.length a then
-            let message = sprintf "There are only %d questions on the game" <| Array.length a
-            invalidArg "questionNumber" message
-        
-        a.[index]
+    let ofSeq seq =
 
-    let count (Answers a) = a |> Array.length |> PositiveNum.ofInt
+        let indexToQuestionNumber index : QuestionNumber =
+            index + 1 |> PositiveNum.ofInt |> Result.valueOrException
+
+        seq
+        |> Seq.mapi (fun i answer -> {Number = indexToQuestionNumber i; Answer = answer})
+        |> List.ofSeq
+        |> Answers 
+    
+    let ofBoolSeq seq = seq |> Seq.map Answer.ofBool |> ofSeq
+    
+    let ofAnswersList seq = Answers seq
+        
+    let getAnswer questionNumber (Answers answers) = 
+        
+        let answerOnQuestion =
+            answers
+            |> Seq.find (fun item -> item.Number = questionNumber)
+        answerOnQuestion.Answer
+        
+
+    let count (Answers answers) = answers |> Seq.length 
+    let filter answer  (Answers answers) =
+        
+        answers
+        |> List.filter (fun item -> item.Answer = answer)
+        |> List.map (fun item -> item.Number)
+        
+    let filterByQuestionNumber questions (Answers answers) =
+        
+        answers
+        |> List.filter (fun answerOnQuestion -> questions |> Seq.exists ((=) answerOnQuestion.Number))
+        |> ofAnswersList
+    
+    
+    let takeFirst questionNumber (Answers answers) =
+        
+        answers
+        |> List.filter (fun answerOnQuestion -> answerOnQuestion.Number <= questionNumber)
+        |> ofAnswersList
+        
+       
+    let findStrike strikeType (Answers answers) =
+        
+        let f =
+            fun (current, bestStrike) answer ->
+                match strikeType, answer with
+                | Best, Right
+                | Worst, Wrong ->
+                    let newCurrent = current + 1
+                    newCurrent, max newCurrent bestStrike
+                | _ -> 0, bestStrike
+        
+        answers
+        |> Seq.map (fun answerOnQuestion -> answerOnQuestion.Answer)
+        |> Seq.fold f (0, 0)
+        |> snd
+        
+    let sumRightAnswers (Answers answers) =
+        answers
+        |> Seq.sumBy (fun answerOnQuestion -> answerOnQuestion.Answer |> Answer.toRightAnswer)
+        
+    let toList (Answers answers) = answers
 
 type GameDay = 
     {
@@ -88,13 +140,98 @@ type GameDay =
         PackageSize : PositiveNum
     }
     
+module GameDay =
+    
+    let allQuestions gameDay : QuestionNumber seq =
+        gameDay.PackageSize
+        |> PositiveNum.createNaturalRange
+        |> Seq.ofList
+        
+    let withTeam team answers gameDay =
+        
+        let checkQuestionsCount a = 
+            
+            // TODO special error
+            let count = a |> Answers.count
+            if count = PositiveNum.value gameDay.PackageSize then Ok() else Error "Questions count mismatching"
+
+        let checkIfTeamAdded t = 
+            
+            let teamAdded = 
+                gameDay.Answers
+                |> Map.containsKey t
+
+            // TODO special error
+            if teamAdded then sprintf "Team %s is already added" <| NoEmptyString.value t.Name |> Error 
+            else Ok()
+
+        result{
+            
+            let! _ = checkQuestionsCount answers
+                
+            let! _ = checkIfTeamAdded team
+            
+            let newAnswers = gameDay.Answers |> Map.add team answers
+            return {gameDay with Answers = newAnswers}
+        }
+        
+    /// Team played at game day
+    let teams gameDay = 
+        gameDay.Answers
+        |> Map.toSeq
+        |> Seq.map fst
+    
+    let answers gameDay =
+        gameDay.Answers
+        |> Map.toSeq
+        |> Seq.map snd
+    
+    
 type TeamRatingPosition<'a> = Team * 'a * Place
 type GameDayRating = TeamRatingPosition<int<RightAnswer>> list
 type SeasonRating = TeamRatingPosition<decimal<Point>> list
 
+
+module Question =
+    
+    /// Number of teams that correctly answered on question 
+    let rightAnswers gameDay question = 
+        gameDay
+        |> GameDay.answers
+        |> Seq.map (Answers.getAnswer question)
+        |> Answers.ofSeq
+        |> Answers.sumRightAnswers
+        
+    /// 
+    let getDifficultQuestions threshold gameDay = 
+
+        let isDifficult question = 
+            
+            let rightAnswers = rightAnswers gameDay question
+            rightAnswers <= threshold
+
+        gameDay
+        |> GameDay.allQuestions
+        |> Seq.filter isDifficult
+        
+    let findDifficultQuestion gameDay =
+        
+        gameDay
+        |> GameDay.allQuestions
+        |> Seq.sortBy (rightAnswers gameDay)
+        |> Seq.head
+
+    let findDifficultQuestionWithRightAnswer gameDay =
+        
+        gameDay
+        |> GameDay.allQuestions
+        |> Seq.filter (fun q -> rightAnswers gameDay q > 0<RightAnswer>)
+        |> Seq.sortBy (fun q -> rightAnswers gameDay q)
+        |> Seq.head
+
 module Rating =
     
-    let fromSeq (input : ((Team * _) seq)) =
+    let ofSeq (input : ((Team * _) seq)) =
         
         let proc (acc, fromPlace) group =
             
@@ -126,75 +263,66 @@ module Rating =
         |> Seq.fold proc (Seq.empty, PositiveNum.numOne)
         |> fst
         |> List.ofSeq
-        
 
-module GameDay = 
+    let ofGameDay gameDay : GameDayRating =
+        gameDay
+        |> GameDay.teams
+        |> Seq.map (fun team -> team, gameDay.Answers.[team] |> Answers.sumRightAnswers)
+        |> ofSeq
         
-    let withTeam team answers gameDay =
+    let ofGameDayWithFilter questions gameDay : GameDayRating = 
         
-        let checkQuestionsCount a = 
+        let answeredOnDifficultQuestions team = 
             
-            answers 
-            |> Answers.count
-            |> Result.bind(fun count -> if count = gameDay.PackageSize then Ok() else Error "Questions count mismatching")
+            gameDay.Answers
+            |> Map.find team
+            |> Answers.filterByQuestionNumber questions
+            |> Answers.sumRightAnswers
 
-        let checkIfTeamAdded t = 
-            
-            let teamAdded = 
-                gameDay.Answers
-                |> Map.containsKey t
-
-            if teamAdded then sprintf "Team %s is already added" <| NoEmptyString.value t.Name |> Error 
-            else Ok()
-
-        result{
-            
-            let! _ = checkQuestionsCount answers
-                
-            let! _ = checkIfTeamAdded team
-            
-            let newAnswers = gameDay.Answers |> Map.add team answers
-            return {gameDay with Answers = newAnswers}
-        }
+        gameDay
+        |> GameDay.teams
+        |> Seq.map (fun t -> t, answeredOnDifficultQuestions t)
+        |> ofSeq
         
-    /// Team played at game day
-    let teams gameDay = 
-        gameDay.Answers
-        |> Map.toSeq
-        |> Seq.map fst
+    let leadingTeams topN rating = 
         
+        rating
+        |> Seq.takeWhile (fun (_, _, place) -> place.From <= topN)
+        |> Seq.map (fun (team, _, _) -> team)
+
+    /// 
+    let getWinnerTeam rating = leadingTeams PositiveNum.numOne rating
+
+
+module Team =
+    
     /// Did team A give right answer question Q
-    let getAnswer gameDay team questionNumber = 
+    let getAnswer gameDay questionNumber team = 
             
         gameDay.Answers 
         |> Map.find team
         |> Answers.getAnswer questionNumber
 
-    /// How many correct answers did the team give as of question Q
-    let totalAnswered gameDay questionNumber team  = 
-        
-        let getAnswer' = getAnswer gameDay team
-        
-        questionNumber
-        |> PositiveNum.createNaturalRange 
-        |> Seq.map getAnswer'
-        |> Seq.sumBy Answer.toRightAnswer
-
-    /// Отставание команды A от лидера по состоянию на вопрос Q
-    let getGapFromTheFirstPlace gameDay team questionNumber = 
-            
-        let totalAnswered' = totalAnswered gameDay questionNumber
-        let teamAnsweredOn = totalAnswered' team 
-
-        let leaderAnsweredOn = 
-            gameDay
-            |> teams
-            |> Seq.map totalAnswered'
-            |> Seq.max
-        
-        teamAnsweredOn - leaderAnsweredOn
-
+    let bestStrike gameDay team =
+        gameDay.Answers
+        |> Map.find team
+        |> Answers.findStrike Best  
     
+    let worstStrike gameDay team =
+        
+        gameDay.Answers
+        |> Map.find team
+        |> Answers.findStrike Worst
+        
+    
+        
+    let totalAnswered gameDay (questionNumber : QuestionNumber) team  = 
+        
+        gameDay.Answers
+        |> Map.find team
+        |> Answers.takeFirst questionNumber
+        |> Answers.sumRightAnswers
+        
     /// Team position after question Q
     let getPlaceAfterQuestion gameDay team questionNumber = 
         
@@ -202,9 +330,9 @@ module GameDay =
 
         let rating = 
             gameDay
-            |> teams
+            |> GameDay.teams
             |> Seq.map (fun team -> team, totalAnswered' team)
-            |> Rating.fromSeq
+            |> Rating.ofSeq
         
         let (_, _, place) = 
             rating
@@ -213,83 +341,84 @@ module GameDay =
         
     let getPlace gameDay team =
         getPlaceAfterQuestion gameDay team gameDay.PackageSize
+    
+    /// Отставание команды A от лидера по состоянию на вопрос Q
+    let getGapFromTheFirstPlace gameDay team questionNumber = 
+        
+        // get rating
+        // find team
+        // find leader
+        
+        let totalAnswered' = totalAnswered gameDay questionNumber
+        let teamAnsweredOn = totalAnswered' team 
 
-    /// Number of teams that correctly answered on question 
-    let rightAnswersOnQuestion gameDay question = 
+        let leaderAnsweredOn = 
+            gameDay
+            |> GameDay.teams
+            |> Seq.map totalAnswered'
+            |> Seq.max
+        
+        teamAnsweredOn - leaderAnsweredOn
+        
+    let private teamPlaces gameDay team =
+        
+        let getPlaceAfterQuestion' = getPlaceAfterQuestion gameDay team
+        
         gameDay
-        |> teams
-        |> Seq.map (fun t -> getAnswer gameDay t question)
-        |> Seq.sumBy Answer.toRightAnswer
-
-    
-    
-
-    let findDifficultQuestion gameDay =
+        |> GameDay.allQuestions
+        |> Seq.map (fun q -> q, getPlaceAfterQuestion' q)
         
-        gameDay.PackageSize
-        |> PositiveNum.createNaturalRange
-        |> Seq.sortBy (fun q -> rightAnswersOnQuestion gameDay q)
-        |> Seq.head
-
-    let findDifficultQuestionWithRightAnswer gameDay =
-        
-        gameDay.PackageSize
-        |> PositiveNum.createNaturalRange
-        |> Seq.filter (fun q -> rightAnswersOnQuestion gameDay q > 0<RightAnswer>)
-        |> Seq.sortBy (fun q -> rightAnswersOnQuestion gameDay q)
-        |> Seq.head
     
-    /// 
-    let getDifficultQuestions threshold gameDay = 
+    let bestPlace gameDay team =
+    
+        let minimumQuestions = 6 |> PositiveNum.ofInt |> Result.valueOrException
+    
+        let question, place = 
+            team
+            |> teamPlaces gameDay
+            |> Seq.filter (fun (q, _) -> q >= minimumQuestions)
+            |> Seq.minBy snd
+         
+        place, question 
 
-        let isDifficult question = 
+    let worstPlace gameDay team =
+        
+        let minimumQuestions = 6 |> PositiveNum.ofInt |> Result.valueOrException 
+        
+        let question, place = 
+            team
+            |> teamPlaces gameDay
+            |> Seq.filter (fun (q, _) -> q >= minimumQuestions)
+            |> Seq.maxBy snd
+        
+        place, question        
+    
+    let difficultAnswered gameDay team =
+        
+        gameDay.Answers
+        |> Map.find team
+        |> Answers.filter Right
+        |> Seq.map (fun q -> q, q |> Question.rightAnswers gameDay)
+        |> Seq.minBy snd
+        
+    let simplestWrongAnswered gameDay team =
+        
+        gameDay.Answers
+        |> Map.find team
+        |> Answers.filter Wrong
+        |> Seq.map (fun q -> q, q |> Question.rightAnswers gameDay)
+        |> Seq.maxBy snd
+        
+
+//module GameDay1 = 
+    
+    
+        
+type RatingPoints = decimal<Point> seq
             
-            let rightAnswers = rightAnswersOnQuestion gameDay question
-            rightAnswers <= threshold
-
-
-        gameDay.PackageSize
-        |> PositiveNum.createNaturalRange
-        |> Seq.filter isDifficult
-        
-    
-    let getRatingOnDifficultQuestions threshold gameDay : GameDayRating = 
-        
-        let questions = getDifficultQuestions threshold gameDay
-
-        let answeredOnDifficultQuestions team = 
-            
-            questions
-            |> Seq.map (getAnswer gameDay team)
-            |> Seq.sumBy Answer.toRightAnswer
-
-        gameDay
-        |> teams
-        |> Seq.map (fun t -> t, answeredOnDifficultQuestions t)
-        |> Rating.fromSeq
-        
-    let getRating gameDay : GameDayRating =
-            
-        gameDay
-        |> teams
-        |> Seq.map (fun team -> team, totalAnswered gameDay gameDay.PackageSize team)
-        |> Rating.fromSeq
-        
-    let leadingTeams topN gameDay = 
-        
-        let q = PositiveNum.value topN
-
-        gameDay
-        |> getRating
-        |> Seq.takeWhile (fun (_, _, place) -> place.From <= topN)
-        |> Seq.map (fun (team, _, _) -> team)
-
-    /// 
-    let getWinnerTeam gameDay = leadingTeams PositiveNum.numOne gameDay
-
 type SeasonTable = 
     {
-        Results : Map<Team, decimal<Point> seq>
+        Results : Map<Team, RatingPoints>
         Table : SeasonRating
         GamesCount : PositiveNum
     }
@@ -300,14 +429,11 @@ module SeasonTable =
         
         let create gamesCount = 
             
-            let table : SeasonRating = 
+            let table = 
                 
-                let teamWithRating = 
-                    data
-                    |> Seq.map (fun (team, rating) -> team, rating |> Seq.sum)
-                    
-                teamWithRating
-                |> Rating.fromSeq
+                data
+                |> Seq.map (fun (team, rating) -> team, rating |> Seq.sum)
+                |> Rating.ofSeq
             
             {
                 Table = table 
@@ -316,7 +442,7 @@ module SeasonTable =
             }
             
         let gamesCount d =
-            data
+            d
             |> Seq.map (snd >> Seq.length)
             |> Seq.max
             |> PositiveNum.ofInt
@@ -331,10 +457,7 @@ module SeasonTable =
         let topResults allResults =
             
             let gamesToCount = 
-                let t = 
-                    if resultsToCount > seasonTable.GamesCount
-                    then seasonTable.GamesCount
-                    else resultsToCount
+                let t = min resultsToCount seasonTable.GamesCount
                 t |> PositiveNum.value
             
             allResults
@@ -345,7 +468,7 @@ module SeasonTable =
         seasonTable.Results
         |> Map.toSeq
         |> Seq.map (fun (team, results) -> team, topResults results)
-        |> Rating.fromSeq
+        |> Rating.ofSeq
         
         
         

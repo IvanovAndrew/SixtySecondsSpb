@@ -13,8 +13,8 @@ module PlayoffTests =
     let createTeams teamsCount =
         let createTeam id name =
             {
-                ID = id |> PositiveNum.ofInt |> TestUtils.Utils.okValueOrThrow;
-                Name = name |> NoEmptyString.ofString |> TestUtils.Utils.okValueOrThrow
+                ID = TestUtils.Utils.toPositiveNum id;
+                Name = TestUtils.Utils.toNoEmptyString name 
             }
             
         let teamName num = sprintf "Team №%d" num
@@ -36,7 +36,7 @@ module PlayoffTests =
         
     
     [<Test>]
-    let ``All teams in round of 12 are diffirent``() =
+    let ``All teams in round of 12 are different``() =
         
         let teamsCount = 12
         

@@ -128,12 +128,8 @@ module PositiveNum =
 
     let numOne = PositiveNum(1)
 
-    let previous (PositiveNum i) = i - 1 |> ofInt
-
-    
-    
     let add (PositiveNum one) (PositiveNum two) = PositiveNum (one + two)
-    let next = add  numOne 
+    let next = add numOne 
         
     let createRange first step last =
         
@@ -193,3 +189,11 @@ module Seq =
                 imp newAcc tail
             
         imp Seq.empty seq
+    
+module Array =
+    let filteri predicate seq =
+        
+        seq
+        |> Array.mapi (fun i value -> i, value)
+        |> Array.filter (fun (i, _) -> predicate i)
+        |> Array.map snd

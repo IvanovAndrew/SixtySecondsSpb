@@ -15,13 +15,14 @@ module PropertyBasedTests =
     
 
     let createRange x y z =
-        let first, step, last =
-            x |> PositiveNum.ofInt |> Utils.okValueOrThrow,
-            y |> PositiveNum.ofInt |> Utils.okValueOrThrow,
-            z |> PositiveNum.ofInt |> Utils.okValueOrThrow
         
-        PositiveNum.createRange first step last
-    
+        result {
+            let! first = x |> PositiveNum.ofInt
+            let! step = y |> PositiveNum.ofInt
+            let! last = z |> PositiveNum.ofInt
+
+            return PositiveNum.createRange first step last
+        } |> Result.valueOrException
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<NegativeIntTypes>|])>]    
     let ``PositiveNum property. Positive number can't be created from negative number or zero`` negativeNumber =
@@ -61,68 +62,6 @@ module PropertyBasedTests =
         
         current < next
         
-    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
-    let ``PositiveNum property. Previous positive num is less`` positiveNum =
-        
-        let previousNumberIsLess current = 
-            let previousPositiveNum = current |> PositiveNum.previous |> Utils.okValueOrThrow
-            
-            let previousValue, currentValue =
-                
-                previousPositiveNum |> PositiveNum.value,
-                current |> PositiveNum.value
-            previousValue < currentValue
-        
-        positiveNum <> PositiveNum.numOne ==> lazy(previousNumberIsLess positiveNum)
-        
-    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
-    let ``PositiveNum property. Previous (Next (number)) = number`` positiveNum =
-        
-        let result = 
-            positiveNum
-            |> PositiveNum.next
-            |> PositiveNum.previous
-        
-        match result with 
-        | Ok num -> num = positiveNum
-        | _ -> false
-
-    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
-    let ``PositiveNum property. Next (Previous (number)) = number`` positiveNum =
-        
-        let reversableProperty x = 
-            
-            let result = 
-                x
-                |> PositiveNum.previous
-                |> Result.map PositiveNum.next
-            
-            match result with 
-            | Ok num -> num = x
-            | Error e -> false
-            
-        (positiveNum <> PositiveNum.numOne) ==> lazy(reversableProperty positiveNum) 
-
-    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
-    let ``PositiveNum property. Previous(Next(number)) = Next(Previous (number))`` positiveNum =
-        
-        let reversableProperty x = 
-            
-            let previousThenNext =
-                x
-                |> PositiveNum.previous
-                |> Result.map PositiveNum.next
-            
-            let nextThenPrevious =
-                x
-                |> PositiveNum.next
-                |> PositiveNum.previous
-                
-            previousThenNext = nextThenPrevious
-            
-        (positiveNum <> PositiveNum.numOne) ==> lazy(reversableProperty positiveNum)
-        
-
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]        
     let ``PositiveNum property. The first number of natural range is 1`` naturalRangeLength =
         
