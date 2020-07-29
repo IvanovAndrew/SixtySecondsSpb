@@ -2,9 +2,8 @@
 
 open Elmish.WPF
 
-open SixtySeconds.Actions
+open SixtySeconds.Infrastructure
 open SixtySeconds.Settings
-open SixtySeconds.Views
 open SixtySeconds.Domain
 open SixtySeconds.Common.CommonTypes
 open SixtySeconds.Common.Errors
@@ -110,15 +109,9 @@ module MainApp =
         "ErrorMessage" |> Binding.oneWay(fun model -> model.ErrorMessage |> Option.defaultValue "")
     ]
     
-    let loadSeasonTable url =
-        async {
-            let! document = url |> Parser.asyncLoadDocument 
-
-            return 
-                document
-                |> expectWebRequestError
-                |> Result.bind (Parser.parseTotal >> expectParsingError)
-        }
+    
+    
+    
         
     let loadGameDay (url, game) =
         async {
@@ -146,11 +139,11 @@ module MainApp =
                 
             let ofError' = ofError >> (OnLoadSeasonTableError >> wrap)
             
-            Elmish.Cmd.OfAsync.either loadSeasonTable url ofSuccess' ofError'
+            Elmish.Cmd.OfAsync.either SixtySecondsApi.parseTotal url ofSuccess' ofError'
             
         | LoadGameDay(url, gameName) ->
             
             let ofSuccess' result = ofSuccess result toGamedayPage (OnGameDayLoadedError >> wrap)
             let ofError' = ofError >> (OnGameDayLoadedError >> wrap)
             
-            Elmish.Cmd.OfAsync.either loadGameDay (url, gameName) ofSuccess' ofError'
+            Elmish.Cmd.OfAsync.either SixtySecondsApi.parseGameDay (url, gameName) ofSuccess' ofError'

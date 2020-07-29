@@ -9,6 +9,16 @@ module SixtySecondsWorkflow =
     open Actions
     open SixtySecondsProgramBuilder
     
+    let parseTotal url =
+        simpleProgram {
+            return! parseSeasonRating url
+        }
+        
+    let parseGameDay (url, gameName) =
+        simpleProgram{
+            return! parseGameDay url gameName 
+        }
+    
     let gameDayRating (gameDay, ratingType) =
         simpleProgram {
         

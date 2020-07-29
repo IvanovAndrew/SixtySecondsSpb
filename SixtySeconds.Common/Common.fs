@@ -150,6 +150,12 @@ module Url =
 
     let value (Url url) = url
     
+
+let (|Sec60|Google|) site =
+        
+    if site |> Url.value |> String.containsSubstring "https://60sec.online/"
+    then Sec60 else Google
+    
 module Seq =
     let exceptLast seq =
         

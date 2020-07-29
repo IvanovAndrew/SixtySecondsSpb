@@ -199,7 +199,7 @@ let main argv =
                 return 
                     document
                     |> expectWebRequestError
-                    |> Result.bind (fun v -> v |> Parser.parseTotal |> expectParsingError)  
+                    |> Result.bind (fun v -> v |> Parser.parseTotalFromGoogleSpreadsheet |> expectParsingError)  
                     |> Result.map (fun seasonTable -> showTotalTable seasonTable gamesToCount)
             } |> Async.RunSynchronously
             

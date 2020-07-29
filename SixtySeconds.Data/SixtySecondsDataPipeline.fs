@@ -31,10 +31,16 @@ module SixtySecondsDataPipeline =
         fun url ->
             async {
                 let! htmlDocument = url |> asyncLoadDocument
+                
+                let parse =
+                    match url with
+                    | Sec60 -> Parser.parseTotalFrom60SecSite
+                    | Google -> Parser.parseTotalFromGoogleSpreadsheet
+                
                 return
                     htmlDocument
                     |> expectWebRequestError
-                    |> Result.bind (fun doc -> Parser.parseTotal doc |> expectParsingError)
+                    |> Result.bind (fun doc -> parse doc |> expectParsingError)
             }
             
     let topNResultsTable : TopNResultsTable =

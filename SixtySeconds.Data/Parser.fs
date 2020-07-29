@@ -7,8 +7,6 @@ open SixtySeconds.Actions
 
 open SixtySeconds.Common.Errors
 open SixtySeconds.Common.CommonTypes
-    
-
 
 let asyncLoadDocument url = 
     
@@ -121,6 +119,15 @@ let private findSheetNode document sheetName =
     |> getSheetId document
     |> Result.map findNodeById
 
+let parseTitle document =
+        
+    document
+    |> HtmlDocument.elements
+    |> Seq.head
+    |> HtmlNode.descendants
+    |> Seq.find (fun node -> node.Name() = "title")
+    |> HtmlNode.innerText
+
 let parse (gameName : GameName) (document : HtmlDocument) = 
     
     let number = "№"
@@ -129,19 +136,10 @@ let parse (gameName : GameName) (document : HtmlDocument) =
     let sum = "сум"
     let firstAnswer = "1"
     let rightAnswer = "1"
-    
-    let getSheetTitle() =
-        
-        document
-        |> HtmlDocument.elements
-        |> Seq.head
-        |> HtmlNode.descendants
-        |> Seq.find (fun node -> node.Name() = "title")
-        |> HtmlNode.innerText
 
     let getTournamentName() =
         
-        getSheetTitle()
+        parseTitle document
         |> String.replace "Таблица " ""
         |> NoEmptyString.ofString
         |> expectMissingTournamentName
@@ -246,7 +244,7 @@ let parse (gameName : GameName) (document : HtmlDocument) =
     gameDay
 
 
-let parseTotal document = 
+let parseTotalFromGoogleSpreadsheet document = 
     
     let parseLine options node = 
         
@@ -327,3 +325,108 @@ let parseTotal document =
                 |> Result.bind seasonTable
         }
     seasonRating
+    
+let parseTotalFrom60SecSite document =
+    
+    let tableNodes =
+        let body = 
+            match document |> HtmlDocument.tryGetBody with
+            | Some body -> body
+            | None -> failwith "Missing body"
+            
+        body
+        |> HtmlNode.descendants
+        |> Seq.filter (HtmlNode.hasAttribute "id" "rate_table")
+        // first one is about Высшая лига, the second one is about Первая лига
+        |> Seq.tail
+        |> Seq.head
+        
+    let options = 
+        
+        let optionsLineNode = 
+            tableNodes
+            |> HtmlNode.elements
+            |> List.head
+            |> HtmlNode.elements
+            |> List.head
+            |> HtmlNode.elements
+            
+        {
+            TeamIdColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "Название"))
+            TeamNameColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "Название"))
+            FirstResultColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "Сумма")) |> (+) 1
+            FinalResultColumn = optionsLineNode |> Seq.length |> (+) -1
+        }   
+        
+    let parseLine options node =
+        
+        let innerTextOfNode n index = 
+            n 
+            |> HtmlNode.elements
+            |> Seq.item index 
+            |> HtmlNode.innerText
+
+        let innerTextOfNode' = innerTextOfNode node
+
+        let tryParseDecimal s = 
+            s 
+            |> String.replace "," "."
+            |> (fun s -> if s <> "" then s |> decimal |> Some else None)
+
+        let filterResultNodes elements =
+            elements
+            |> Seq.skip options.FirstResultColumn
+        
+        let res = 
+            node
+            |> HtmlNode.elements
+            |> filterResultNodes
+            |> Seq.map (HtmlNode.innerText >> tryParseDecimal)
+            |> Seq.choose id
+            |> Seq.map Converter.pointFromDecimal
+            
+        let team() =
+            let teamId =
+                let attrValue = 
+                    node 
+                    |> HtmlNode.elements
+                    |> Seq.item options.TeamIdColumn
+                    |> HtmlNode.elements
+                    |> List.head
+                    |> HtmlNode.attributes
+                    |> List.find (fun a -> a.Name() = "href")
+                    |> HtmlAttribute.value
+                
+                let str = 
+                    attrValue
+                    |> String.replace "/team/" ""
+                    |> String.replace "/" ""
+                int str
+                
+                
+            let name = options.TeamNameColumn |> innerTextOfNode'
+            createTeam teamId name
+            |> expectTeamParsingError
+        
+        team() 
+        |> Result.map (fun team -> (team, res))
+        
+    let total =
+        let teamLines = 
+            tableNodes
+            |> HtmlNode.elements
+            |> List.tail
+            |> List.head
+            |> HtmlNode.elements
+            
+        let seasonTable data =
+            data
+            |> SeasonTable.ofSeq
+            |> expectSeasonHasNotStartedError
+            
+        teamLines
+        |> Seq.map (parseLine options)
+        |> Result.combine
+        |> Result.bind seasonTable
+    
+    total

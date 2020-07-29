@@ -31,7 +31,6 @@ module SixtySecondsProgramInterpreter =
             seasonTable |> topNResultsTable |> bindAsync (next >> interpretSixtySecondsProgram)
         
         | Stop a -> async.Return a
-        | _ -> failwithf "Not implemented"
         
     let interpret (prog : Program<'a>) =
         try

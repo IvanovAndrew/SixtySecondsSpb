@@ -37,3 +37,9 @@ module SixtySecondsApi =
         
     let teamSimpleWrongAnsweredQuestionCount arg =
         arg |> (SixtySecondsWorkflow.teamSimpleWrongAnsweredQuestionCount >> SixtySecondsProgramInterpreter.interpretSimple)
+        
+    let parseTotal arg =
+        arg |> (SixtySecondsWorkflow.parseTotal >> SixtySecondsProgramInterpreter.interpret)
+        
+    let parseGameDay arg =
+        arg |> (SixtySecondsWorkflow.parseGameDay >> SixtySecondsProgramInterpreter.interpret)
