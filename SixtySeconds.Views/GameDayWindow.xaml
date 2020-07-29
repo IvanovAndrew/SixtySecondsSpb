@@ -76,7 +76,7 @@
                             <TextBlock.Text>
                                 <MultiBinding StringFormat="Team: {0} ({1})">
                                     <Binding Path="TeamName"/>
-                                    <Binding Path="TeamIDChoosen"/>
+                                    <Binding Path="TeamIDChosen"/>
                                 </MultiBinding>
                             </TextBlock.Text>
                         </TextBlock>
@@ -178,7 +178,8 @@
                 Width="250"
                 Visibility="{Binding ErrorMessageVisibility}"
                 Foreground="Red"
-                Style="{StaticResource TextBlock}"/>
+                Style="{StaticResource TextBlock}"
+                TextWrapping="Wrap"/>
             <TextBlock 
                 Text="{Binding StatusMessage}"
                 Width="250"

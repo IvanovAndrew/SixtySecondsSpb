@@ -7,7 +7,8 @@ open FsUnit
 [<TestFixture>]
 module PlayoffTests =
     
-    open Domain
+    open SixtySeconds.Domain
+    open SixtySeconds.Actions
     open Utils
         
     let createTeams teamsCount =

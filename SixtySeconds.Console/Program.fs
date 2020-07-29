@@ -1,10 +1,16 @@
-﻿open Domain
-open Utils
-open Utils.PositiveNum
-open Chart
+﻿open Chart
 open Config
-open Parser
 open SpreadsheetWriter
+
+open SixtySeconds.Common.CommonTypes
+
+open SixtySeconds.Common.Errors
+open SixtySeconds.Common.ErrorMessages
+
+open SixtySeconds.Domain
+open SixtySeconds.Actions
+open SixtySeconds.SixtySecondsProgramBuilder
+
 
 type WriteMode = 
     | ReadOnly 
@@ -117,7 +123,7 @@ let processGameDay options gameDay =
         options.TeamChart
         |> Option.iter showTeamChart
             
-    | None -> failwith "Team with Id %d not found" <| PositiveNum.value options.TeamId
+    | None -> failwithf "Team with Id %d not found" options.TeamId.Value
 
 [<EntryPoint>]
 let main argv =
@@ -165,8 +171,8 @@ let main argv =
                 
                 return
                     document
-                    |> Result.mapError WebRequestError
-                    |> Result.bind (fun d -> d |> Parser.parse sheet |> Result.mapError ParsingError)
+                    |> expectWebRequestError
+                    |> Result.bind (fun d -> d |> Parser.parse sheet |> expectParsingError)
                     |> Result.map (processGameDay options)
             } |> Async.RunSynchronously
         
@@ -189,11 +195,11 @@ let main argv =
                     | Ok v -> Parser.asyncLoadDocument v
                     // TODO remove it
                     | Error e -> failwith "Wrong url"
-
+                    
                 return 
                     document
-                    |> Result.mapError WebRequestError
-                    |> Result.bind (fun v -> v |> Parser.parseTotal |> Result.mapError ParsingError)  
+                    |> expectWebRequestError
+                    |> Result.bind (fun v -> v |> Parser.parseTotal |> expectParsingError)  
                     |> Result.map (fun seasonTable -> showTotalTable seasonTable gamesToCount)
             } |> Async.RunSynchronously
             

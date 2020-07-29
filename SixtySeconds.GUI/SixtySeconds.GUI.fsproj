@@ -12,6 +12,7 @@
     <Compile Include="Settings.fs" />
     <Compile Include="SeasonTableApp.fs" />
     <Compile Include="GameDayApp.fs" />
+    <Compile Include="MainPageApp.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
@@ -24,6 +25,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SixtySeconds.Data\SixtySeconds.Data.fsproj" />
+    <ProjectReference Include="..\SixtySeconds.Infrastructure\SixtySeconds.Infrastructure.fsproj" />
     <ProjectReference Include="..\SixtySeconds.Views\SixtySeconds.Views.csproj" />
     <ProjectReference Include="..\SixtySeconds\SixtySeconds.fsproj" />
   </ItemGroup>

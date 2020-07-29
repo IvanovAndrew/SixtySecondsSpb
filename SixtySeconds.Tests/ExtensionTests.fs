@@ -10,6 +10,8 @@ module SeqExceptLastExampleTests =
     open Utils
     open FsUnit
     
+    open SixtySeconds.Common.CommonTypes
+    
     // TODO maybe should throw exception?
     [<Test>]
     let ``Empty seq except last item is empty seq``() =
@@ -23,6 +25,7 @@ module ``ExceptLast function specification`` =
     open TestUtils
     open FsCheckUtils
     open Utils
+    open SixtySeconds.Common.CommonTypes
     
     let nonEmptySeq =
         [1..10]
@@ -63,6 +66,7 @@ module ``Result combine function specification`` =
     open TestUtils
     open FsCheckUtils
     open Utils
+    open SixtySeconds.Common.CommonTypes
     
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<SeqResult>|])>]
     let ``Result.combine will be error if an error item exists``(seq : Result<int, string> list) =

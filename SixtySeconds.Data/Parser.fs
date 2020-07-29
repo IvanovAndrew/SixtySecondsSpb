@@ -121,7 +121,7 @@ let private findSheetNode document sheetName =
     |> getSheetId document
     |> Result.map findNodeById
 
-let parse gameName (document : HtmlDocument) = 
+let parse (gameName : GameName) (document : HtmlDocument) = 
     
     let number = "№"
     let name = ""

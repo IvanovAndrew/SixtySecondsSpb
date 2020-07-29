@@ -1,6 +1,7 @@
 ﻿namespace GameDay.Tests
 
-open Domain
+open SixtySeconds.Domain
+open SixtySeconds.Actions
 
 open System
 open NUnit.Framework
@@ -23,9 +24,8 @@ module GameDayUtils =
         
 module GameDayPropertiesTests =
     
-    open TestUtils
     open FsCheckUtils
-    open Utils
+    open SixtySeconds.Common.CommonTypes
     
     let createNewTeam teams =
         

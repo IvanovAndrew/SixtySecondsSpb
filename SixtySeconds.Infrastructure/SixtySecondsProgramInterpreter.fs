@@ -1,40 +1,50 @@
-﻿namespace SixtySeconds.Infrastructure
+namespace SixtySeconds.Infrastructure
+
+open SixtySeconds.Data
 
 module SixtySecondsProgramInterpreter =
     
-    let rec private interpretCardProgram prog =
+    open SixtySeconds.Common.Errors
+    open SixtySeconds.Common.CommonTypes
+    open SixtySeconds.SixtySecondsProgramBuilder
+    
+    let private parseGameDay (url, game) =
+        SixtySecondsDataPipeline.parseGameDayAsync url game
+        
+    let private gameDayRating = SixtySecondsDataPipeline.getGameDayRating
+        
+    let private parseSeasonRating = SixtySecondsDataPipeline.parseSeasonRating
+    let private topNResultsTable (seasonTable, games) = SixtySecondsDataPipeline.topNResultsTable seasonTable games
+    
+    let rec private interpretSixtySecondsProgram (prog : Program<'a>) =
         match prog with
-        | GetCard (cardNumber, next) ->
-            cardNumber |> getCardAsync mongoDb |> bindAsync (next >> interpretCardProgram mongoDb)
-        | GetCardWithAccountInfo (number, next) ->
-            number |> getCardWithAccInfoAsync mongoDb |> bindAsync (next >> interpretCardProgram mongoDb)
-        | CreateCard ((card,acc), next) ->
-            (card, acc) |> createCardAsync mongoDb |> bindAsync (next >> interpretCardProgram mongoDb)
-        | ReplaceCard (card, next) ->
-            card |> replaceCardAsync mongoDb |> bindAsync (next >> interpretCardProgram mongoDb)
-        | GetUser (id, next) ->
-            getUserAsync mongoDb id |> bindAsync (next >> interpretCardProgram mongoDb)
-        | CreateUser (user, next) ->
-            user |> createUserAsync mongoDb |> bindAsync (next >> interpretCardProgram mongoDb)
-        | GetBalanceOperations (request, next) ->
-            getBalanceOperationsAsync mongoDb request |> bindAsync (next >> interpretCardProgram mongoDb)
-        | SaveBalanceOperation (op, next) ->
-             saveBalanceOperationAsync mongoDb op |> bindAsync (next >> interpretCardProgram mongoDb)
+        | ParseGameDay ((url,game), next) ->
+            (url,game) |> parseGameDay |> bindAsync (next >> interpretSixtySecondsProgram)
+            
+        | GameDayRating (gameDay, next) ->
+            gameDay |> gameDayRating |> bindAsync (next >> interpretSixtySecondsProgram)
+                
+        | ParseSeasonRating (url, next) ->
+            url |> parseSeasonRating |> bindAsync (next >> interpretSixtySecondsProgram)
+            
+        | TopNResultsTable (seasonTable, next) ->
+            seasonTable |> topNResultsTable |> bindAsync (next >> interpretSixtySecondsProgram)
+        
         | Stop a -> async.Return a
-
-    let interpret prog =
+        | _ -> failwithf "Not implemented"
+        
+    let interpret (prog : Program<'a>) =
         try
-            let interpret = interpretCardProgram()
-            interpret prog
+            let interpret' = interpretSixtySecondsProgram
+            interpret' prog
         with
-        | failure -> Bug failure |> Error |> async.Return
+        | failure -> failure |> bug |> async.Return
 
     let interpretSimple prog =
         try
-            let interpret = interpretCardProgram()
             async {
-                let! result = interpret prog
+                let! result = interpretSixtySecondsProgram prog
                 return Ok result
             }
         with
-        | failure -> Bug failure |> Error |> async.Return
+        | failure -> failure |> bug |> async.Return

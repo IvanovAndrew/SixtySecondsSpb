@@ -1,9 +1,9 @@
 ﻿module Chart
 
-open Domain
-open Domain
+open SixtySeconds.Domain
+open SixtySeconds.Actions
 open GoogleChartService
-open Utils
+open SixtySeconds.Common.CommonTypes
 
 let showGraphic data (teams : Team seq) gameDay vAxis = 
     
@@ -13,15 +13,15 @@ let showGraphic data (teams : Team seq) gameDay vAxis =
         data 
         |> Seq.map (fun g -> g |> Seq.mapi (fun i v -> i+1, v))
 
-    let labels = teams |> Seq.map (fun t -> t.Name |> NoEmptyString.value)
+    let labels = teams |> Seq.map (fun t -> t.Name.Value)
 
-    let hMax = gameDay.PackageSize |> PositiveNum.value
+    let hMax = gameDay.PackageSize.Value
 
     let options = 
         {
             HorizonalAxis = {Direction = Direction.Forward; Label = horizontalAxisLabel; Maximum = hMax}
             VerticalAxis = vAxis
-            Title = sprintf "%s %s" <| NoEmptyString.value gameDay.Tournament <| NoEmptyString.value gameDay.Name
+            Title = sprintf "%s %s" gameDay.Tournament.Value gameDay.Name.Value
         }
 
     GoogleChart.showData graphicData labels <| ChartType.Line options
@@ -34,7 +34,7 @@ let showPlacesQuestionByQuestion gameDay teams =
             gameDay
             |> GameDay.allQuestions
             |> Seq.map (Team.getPlaceAfterQuestion gameDay team)
-            |> Seq.map (fun p -> p.From |> PositiveNum.value)
+            |> Seq.map (fun p -> p.From.Value)
 
         teams 
         |> Seq.map places
@@ -71,7 +71,7 @@ let showTotalTable data topN =
             
         let toColumnFormat (table : SeasonRating) = 
             table 
-            |> Seq.map (fun (team, points, _) -> team.Name |> NoEmptyString.value, points)
+            |> Seq.map (fun (team, points, _) -> team.Name.Value, points)
 
         [topNResultTable; data.Table]
         |> Seq.map toColumnFormat
@@ -79,8 +79,8 @@ let showTotalTable data topN =
     let labels = 
         [
             "Team"; 
-            (sprintf "Best %d games" <| PositiveNum.value topN); 
-            (sprintf "All %d games" <| PositiveNum.value data.GamesCount); 
+            (sprintf "Best %d games" topN.Value); 
+            (sprintf "All %d games" data.GamesCount.Value); 
         ]
 
     GoogleChart.showData columns labels ChartType.Table

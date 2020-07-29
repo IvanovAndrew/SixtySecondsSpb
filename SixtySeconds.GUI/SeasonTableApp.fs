@@ -2,10 +2,10 @@
 
 open System
 open System.Windows
-open Domain
+open SixtySeconds.Domain
+open SixtySeconds.Actions
 
 open SixtySeconds.Common.CommonTypes
-open SixtySeconds.Common.CommonTypes.PositiveNum
 
 open Elmish.WPF
 
@@ -16,7 +16,7 @@ type TeamSeasonRating =
         Id : int
         Place : int
         Name : string
-        Rating : decimal<Domain.Point>
+        Rating : decimal<Point>
         
         Team : Team
     }
@@ -56,13 +56,12 @@ let validateGamesToCount (seasonTable : SeasonTable) games =
     |> PositiveNum.ofString
     |> Result.bind checkRange
 
-
 let showTable count model = 
     let filtered = 
         let teamRating i (team, rating, place) = 
             {
-                Id = team.ID |> PositiveNum.value
-                Name = team.Name |> NoEmptyString.value
+                Id = team.ID.Value
+                Name = team.Name.Value
                 Place = i + 1; 
                 Rating = rating
                 Team = team
@@ -109,10 +108,10 @@ let update message model =
 let bindings wrap = 
     (fun () -> [
         "GamesToCount" |> Binding.twoWay(
-            (fun m -> m.GamesToCount |> PositiveNum.value |> float),
+            (fun m -> m.GamesToCount.Value |> float),
             (fun g m -> g |> int |> GamesToCountChanged |> wrap)
             )
-        "MaxValue" |> Binding.oneWay(fun m -> m.MaximumGames |> PositiveNum.value |> float)
+        "MaxValue" |> Binding.oneWay(fun m -> m.MaximumGames.Value |> float)
         "ShowSeasonTable" |> Binding.cmd(
                 fun model -> 
                     model.GamesToCount

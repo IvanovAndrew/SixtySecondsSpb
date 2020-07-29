@@ -112,7 +112,7 @@ let AsyncUpdateRequest (service : SheetsService) spreadsheetID valueRange =
         let result = 
             match updateResponse.UpdatedRows |> Option.ofNullable with
             | Some value when value > 0 -> Ok()
-            | _ -> Error "No one rows are updated"
+            | _ -> Error <| exn "No one rows are updated"
         
         return result
     }

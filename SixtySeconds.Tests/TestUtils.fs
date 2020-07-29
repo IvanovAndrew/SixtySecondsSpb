@@ -1,5 +1,7 @@
 ﻿namespace TestUtils
-open Domain
+
+open SixtySeconds.Common.CommonTypes
+open SixtySeconds.Domain
 
 module Utils =
     
@@ -31,7 +33,7 @@ module FsCheckUtils =
             [1 .. 100]
             |> Gen.elements 
             |> Arb.fromGen
-            |> Arb.convert toPositiveNum PositiveNum.value
+            |> Arb.convert toPositiveNum (fun p -> p.Value)
     
     
     type NonEmptySeq =
@@ -84,7 +86,7 @@ module FsCheckUtils =
                     |> Gen.listOf
                     |> Gen.map Answers.ofSeq
                 
-                let! strike = Arb.generate<Strike>
+                let! strike = Arb.generate<StrikeType>
                 
                 return strike, answers
             } |> Arb.fromGen

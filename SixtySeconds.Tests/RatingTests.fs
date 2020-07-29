@@ -3,10 +3,11 @@
 module RatingTests = 
 
     
-    open Domain
+    open SixtySeconds.Domain
+    open SixtySeconds.Actions
     open TestUtils
     open TestUtils.FsCheckUtils
-    open Utils
+    open SixtySeconds.Common.CommonTypes
 
     open FsCheck
     open FsCheck.NUnit

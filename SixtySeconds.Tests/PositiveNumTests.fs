@@ -8,9 +8,7 @@ open TestUtils
 [<TestFixture>]
 module PropertyBasedTests = 
 
-    open System
-    open Utils
-
+    open SixtySeconds.Common.CommonTypes
     open TestUtils.FsCheckUtils
     
 
@@ -44,7 +42,7 @@ module PropertyBasedTests =
         let result = 
             positiveInt
             |> PositiveNum.ofInt
-            |> Result.map PositiveNum.value
+            |> Result.map (fun p -> p.Value)
         
         match result with 
         | Ok num -> num = positiveInt
@@ -56,9 +54,7 @@ module PropertyBasedTests =
         
         let nextPositiveNum = current |> PositiveNum.next
         
-        let current, next =
-            current |> PositiveNum.value,
-            nextPositiveNum |> PositiveNum.value
+        let current, next = current.Value, nextPositiveNum.Value
         
         current < next
         
@@ -75,7 +71,7 @@ module PropertyBasedTests =
         
         let range = PositiveNum.createNaturalRange naturalRangeLength
         
-        let sortedRange = range |> List.sortBy PositiveNum.value
+        let sortedRange = range |> List.sort
         range = sortedRange
             
 
@@ -89,16 +85,12 @@ module PropertyBasedTests =
                 |> PositiveNum.createNaturalRange
                 |> Seq.length
             
-            rangeLength = PositiveNum.value num
+            rangeLength = num.Value
         
         lastValueOfNaturalRangeIsEqualToLength x
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveNumberTypes>|])>]
-    let ``PositiveNum property. Last number of range is maximum value`` x y z =
-        
-        let precondition =
-            let xValue, zValue = x |> PositiveNum.value, z |> PositiveNum.value
-            xValue <= zValue
+    let ``PositiveNum property. Last number of range is maximum value`` (x : PositiveNum) y (z : PositiveNum) =
         
         let maximumValueIsLastItem first step last =
             
@@ -110,7 +102,7 @@ module PropertyBasedTests =
             
             maxValue = lastItem
         
-        precondition ==> lazy(maximumValueIsLastItem x y z)
+        x.Value < z.Value ==> lazy(maximumValueIsLastItem x y z)
 
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<PositiveIntTypes>|])>]
     let ``PositiveNum property. All range numbers are unique`` x y z =

@@ -5,7 +5,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Library.fs"/>
+        <Compile Include="SixtySecondsProgramInterpreter.fs" />
+        <Compile Include="SixtySecondsApi.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\SixtySeconds.Data\SixtySeconds.Data.fsproj" />
+      <ProjectReference Include="..\SixtySeconds\SixtySeconds.fsproj" />
     </ItemGroup>
 
 </Project>

@@ -1,19 +1,19 @@
 ﻿namespace Answers
 
-open Domain
 open NUnit.Framework
 open FsCheck
 open FsCheck.NUnit
 open FsUnit
 open System
 
+open SixtySeconds.Common.CommonTypes
 open TestUtils
 open Utils
 
 
 module ``Find strike specification`` =
     
-    open Domain
+    open SixtySeconds.Domain
     open TestUtils.FsCheckUtils
     
     let reverseAnswers answers =
@@ -67,6 +67,6 @@ module ``Find strike specification`` =
             answers
             |> Answers.findStrike Best
             
-        let count = answers |> Answers.count
+        let count = answers |> Answers.count |> PositiveNum.ofInt |> Result.toOption
         
-        strike = count
+        strike.Count = count

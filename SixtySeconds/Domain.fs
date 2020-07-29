@@ -1,592 +1,182 @@
-﻿module Domain
+﻿namespace SixtySeconds
 
-open System
-open System.Text
-open Utils
-open PositiveNum
+module Domain = 
 
-
-type Team = 
-    {
-        ID : PositiveNum
-        Name : NoEmptyString
-    }
-    
-let createTeam id name =
-    result {
-        let! positiveId = PositiveNum.ofInt id
-        let! noEmptyName = NoEmptyString.ofString name
-        
-        return {ID = positiveId; Name = noEmptyName;}
-    }
-
-type Place = 
-    {
-        From : PositiveNum
-        To : PositiveNum
-    }
-    
-module Place =
-    
-    let toString place =
-        if place.From = place.To then sprintf "%d" <| PositiveNum.value place.From
-        else sprintf "%d-%d" <| PositiveNum.value place.From <| PositiveNum.value place.To
-        
-    
-type Answer = 
-    | Right 
-    | Wrong
-    
-[<Measure>]
-type RightAnswer
-
-[<Measure>]
-type Point
-
-module Converter =
-    
-    let rightAnswerFromInt num = num * 1<RightAnswer>
-    let pointFromDecimal num = num * 1m<Point>
-    let toInt (num : int<_>) = int num
-    let toDecimal (num : decimal<_>) = decimal num
-
-module Answer =
-    
-    let ofBool isRight = if isRight then Right else Wrong
-    let isRight answer = answer = Answer.Right
-    let toRightAnswer answer = if isRight answer then 1<RightAnswer> else 0<RightAnswer> 
+    open SixtySeconds.Common.CommonTypes
 
 
-type QuestionNumber = PositiveNum    
-type AnswerOnQuestion = {Number : QuestionNumber; Answer : Answer}
-type Answers = private Answers of (AnswerOnQuestion) list 
-type Strike =
-    | Best
-    | Worst
+    type Team = 
+        {
+            ID : PositiveNum
+            Name : NoEmptyString
+        }
 
+    type Place = 
+        {
+            From : PositiveNum
+            To : PositiveNum
+        }    
     
-module Answers = 
+    [<Measure>]
+    type RightAnswer
+        
+    type Answer = 
+        | Right 
+        | Wrong
+        
+        with
+            static member ofBool isRight = if isRight then Right else Wrong
+            static member isRight answer = answer = Answer.Right
+            static member toRightAnswer answer = if Answer.isRight answer then 1<RightAnswer> else 0<RightAnswer>
+        
     
-    let ofSeq seq =
 
-        let indexToQuestionNumber index : QuestionNumber =
-            index + 1 |> PositiveNum.ofInt |> Result.valueOrException
+    [<Measure>]
+    type Point 
 
-        seq
-        |> Seq.mapi (fun i answer -> {Number = indexToQuestionNumber i; Answer = answer})
-        |> List.ofSeq
-        |> Answers 
+    type StrikeType =
+        | Best
+        | Worst
+        
+    type QuestionNumber = PositiveNum
     
-    let ofBoolSeq seq = seq |> Seq.map Answer.ofBool |> ofSeq
+    type StrikeInfo =
+        {
+            Type : StrikeType
+         //   From : QuestionNumber
+         //   To : QuestionNumber
+            Count : PositiveNum option
+        }
+        with
+            static member Default strikeType = {Type = strikeType; Count = None}
+            static member Increase strike =
+                {
+                    strike with
+                        Count =
+                            strike.Count
+                            |> Option.map (PositiveNum.next)
+                            |> Option.orElse (Some PositiveNum.numOne) 
+                }
     
-    let ofAnswersList seq = Answers seq
-        
-    let getAnswer questionNumber (Answers answers) = 
-        
-        let answerOnQuestion =
-            answers
-            |> Seq.find (fun item -> item.Number = questionNumber)
-        answerOnQuestion.Answer
-        
+    type AnswerOnQuestion = {Number : QuestionNumber; Answer : Answer}
+    type Answers = private Answers of (AnswerOnQuestion) list
+        with
+            static member ofSeq seq =
 
-    let count (Answers answers) = answers |> Seq.length 
-    let filter answer  (Answers answers) =
-        
-        answers
-        |> List.filter (fun item -> item.Answer = answer)
-        |> List.map (fun item -> item.Number)
-        
-    let filterByQuestionNumber questions (Answers answers) =
-        
-        answers
-        |> List.filter (fun answerOnQuestion -> questions |> Seq.exists ((=) answerOnQuestion.Number))
-        |> ofAnswersList
-    
-    
-    let takeFirst questionNumber (Answers answers) =
-        
-        answers
-        |> List.filter (fun answerOnQuestion -> answerOnQuestion.Number <= questionNumber)
-        |> ofAnswersList
-        
-       
-    let findStrike strikeType (Answers answers) =
-        
-        let f =
-            fun (current, bestStrike) answer ->
-                match strikeType, answer with
-                | Best, Right
-                | Worst, Wrong ->
-                    let newCurrent = current + 1
-                    newCurrent, max newCurrent bestStrike
-                | _ -> 0, bestStrike
-        
-        answers
-        |> Seq.map (fun answerOnQuestion -> answerOnQuestion.Answer)
-        |> Seq.fold f (0, 0)
-        |> snd
-        
-    let sumRightAnswers (Answers answers) =
-        answers
-        |> Seq.sumBy (fun answerOnQuestion -> answerOnQuestion.Answer |> Answer.toRightAnswer)
-        
-    let toList (Answers answers) = answers
+                let indexToQuestionNumber index : QuestionNumber =
+                    index + 1 |> PositiveNum.ofInt |> Result.valueOrException
 
-type GameDay = 
-    {
-        Tournament : NoEmptyString
-        Name : NoEmptyString
-        Answers : Map<Team, Answers>
-        PackageSize : PositiveNum
-    }
-    
-module GameDay =
-    
-    let allQuestions gameDay : QuestionNumber seq =
-        gameDay.PackageSize
-        |> PositiveNum.createNaturalRange
-        |> Seq.ofList
+                seq
+                |> Seq.mapi (fun i answer -> {Number = indexToQuestionNumber i; Answer = answer})
+                |> List.ofSeq
+                |> Answers 
         
-    let withTeam team answers gameDay =
+            static member ofBoolSeq seq = seq |> Seq.map Answer.ofBool |> Answers.ofSeq
         
-        let checkQuestionsCount a = 
+            static member ofAnswersList seq = Answers seq
             
-            // TODO special error
-            let count = a |> Answers.count
-            if count = PositiveNum.value gameDay.PackageSize then Ok() else Error "Questions count mismatching"
-
-        let checkIfTeamAdded t = 
-            
-            let teamAdded = 
-                gameDay.Answers
-                |> Map.containsKey t
-
-            // TODO special error
-            if teamAdded then sprintf "Team %s is already added" <| NoEmptyString.value t.Name |> Error 
-            else Ok()
-
-        result{
-            
-            let! _ = checkQuestionsCount answers
+            static member getAnswer questionNumber (Answers answers) = 
                 
-            let! _ = checkIfTeamAdded team
+                let answerOnQuestion =
+                    answers
+                    |> Seq.find (fun item -> item.Number = questionNumber)
+                answerOnQuestion.Answer
+                
+
+            static member count (Answers answers) = answers |> Seq.length 
+            static member filter answer  (Answers answers) =
+                
+                answers
+                |> List.filter (fun item -> item.Answer = answer)
+                |> List.map (fun item -> item.Number)
+                
+            static member filterByQuestionNumber questions (Answers answers) =
+                
+                answers
+                |> List.filter (fun answerOnQuestion -> questions |> Seq.exists ((=) answerOnQuestion.Number))
+                |> Answers.ofAnswersList
             
-            let newAnswers = gameDay.Answers |> Map.add team answers
-            return {gameDay with Answers = newAnswers}
+            
+            static member takeFirst questionNumber (Answers answers) =
+                
+                answers
+                |> List.filter (fun answerOnQuestion -> answerOnQuestion.Number <= questionNumber)
+                |> Answers.ofAnswersList
+                
+               
+            static member findStrike strikeType (Answers answers) =
+                
+                let defaultStrike = StrikeInfo.Default strikeType
+                let findBestStrike current best =
+                    match current.Count, best.Count with
+                    | (Some c, Some b) when c > b -> current
+                    | (Some c, Some b) -> best
+                    | None, Some _ -> best
+                    | Some _, None -> current
+                    | _ -> best
+                
+                let f =
+                    fun (current, bestStrike) answer ->
+                        match strikeType, answer with
+                        | Best, Right
+                        | Worst, Wrong ->
+                            let newCurrent = StrikeInfo.Increase current
+                            newCurrent, findBestStrike newCurrent bestStrike
+                        | _ -> defaultStrike, bestStrike
+                
+                let strike = 
+                    answers
+                    |> Seq.map (fun answerOnQuestion -> answerOnQuestion.Answer)
+                    |> Seq.fold f (defaultStrike, defaultStrike)
+                    |> snd
+                
+                strike
+                
+            static member sumRightAnswers (Answers answers) =
+                answers
+                |> Seq.sumBy (fun answerOnQuestion -> answerOnQuestion.Answer |> Answer.toRightAnswer)
+                
+            static member toList (Answers answers) = answers
+            
+    type TournamentName = NoEmptyString
+    type GameName = NoEmptyString
+
+    type GameDay = 
+        {
+            Tournament : TournamentName
+            Name : GameName
+            Answers : Map<Team, Answers>
+            PackageSize : PositiveNum
         }
         
-    /// Team played at game day
-    let teams gameDay = 
-        gameDay.Answers
-        |> Map.toSeq
-        |> Seq.map fst
-    
-    let answers gameDay =
-        gameDay.Answers
-        |> Map.toSeq
-        |> Seq.map snd
-    
-    
-type TeamRatingPosition<'a> = Team * 'a * Place
-type GameDayRating = TeamRatingPosition<int<RightAnswer>> list
-type SeasonRating = TeamRatingPosition<decimal<Point>> list
-
-
-module Question =
-    
-    /// Number of teams that correctly answered on question 
-    let rightAnswers gameDay question = 
-        gameDay
-        |> GameDay.answers
-        |> Seq.map (Answers.getAnswer question)
-        |> Answers.ofSeq
-        |> Answers.sumRightAnswers
+    type RatingType =
+        | All
+        | Threshold of int<RightAnswer>
         
-    /// 
-    let getDifficultQuestions threshold gameDay = 
-
-        let isDifficult question = 
+    type TeamRatingPosition<'a> = Team * 'a * Place
+    type GameDayRating = TeamRatingPosition<int<RightAnswer>> list
+    type SeasonRating = TeamRatingPosition<decimal<Point>> list
             
-            let rightAnswers = rightAnswers gameDay question
-            rightAnswers <= threshold
-
-        gameDay
-        |> GameDay.allQuestions
-        |> Seq.filter isDifficult
-        
-    let findDifficultQuestion gameDay =
-        
-        gameDay
-        |> GameDay.allQuestions
-        |> Seq.sortBy (rightAnswers gameDay)
-        |> Seq.head
-
-    let findDifficultQuestionWithRightAnswer gameDay =
-        
-        gameDay
-        |> GameDay.allQuestions
-        |> Seq.filter (fun q -> rightAnswers gameDay q > 0<RightAnswer>)
-        |> Seq.sortBy (fun q -> rightAnswers gameDay q)
-        |> Seq.head
-
-module Rating =
-    
-    let ofSeq (input : ((Team * _) seq)) =
-        
-        let proc (acc, fromPlace) group =
-            
-            let place =
-                let toPlace =
+    type RatingPoints = decimal<Point> seq
                 
-                    let groupLength = group |> Seq.length
-                    if groupLength <= 1 then fromPlace
-                    else
-                        groupLength - 1
-                        |> PositiveNum.ofInt
-                        |> Result.valueOrException
-                        |> PositiveNum.add fromPlace 
-            
-                {From = fromPlace; To = toPlace}
-                
-            
-            let newGroup = 
-                group
-                |> Seq.map (fun (team, rating) -> team, rating, place)
-                |> Seq.append acc
-                
-            newGroup, PositiveNum.next place.To
-            
-        input
-        |> Seq.groupBy (fun (_, rating) -> rating)
-        |> Seq.sortByDescending (fun (key, _) -> key)
-        |> Seq.map snd
-        |> Seq.fold proc (Seq.empty, PositiveNum.numOne)
-        |> fst
-        |> List.ofSeq
+    type SeasonTable = 
+        {
+            Results : Map<Team, RatingPoints>
+            Table : SeasonRating
+            GamesCount : PositiveNum
+        }
 
-    let ofGameDay gameDay : GameDayRating =
-        gameDay
-        |> GameDay.teams
-        |> Seq.map (fun team -> team, gameDay.Answers.[team] |> Answers.sumRightAnswers)
-        |> ofSeq
-        
-    let ofGameDayWithFilter questions gameDay : GameDayRating = 
-        
-        let answeredOnDifficultQuestions team = 
-            
-            gameDay.Answers
-            |> Map.find team
-            |> Answers.filterByQuestionNumber questions
-            |> Answers.sumRightAnswers
+    type RoundOf12MatchUp = Team * Team
 
-        gameDay
-        |> GameDay.teams
-        |> Seq.map (fun t -> t, answeredOnDifficultQuestions t)
-        |> ofSeq
-        
-    let leadingTeams topN rating = 
-        
-        rating
-        |> Seq.takeWhile (fun (_, _, place) -> place.From <= topN)
-        |> Seq.map (fun (team, _, _) -> team)
+    type QuarterFinalTeam =
+        | RoundOf12Winner of RoundOf12MatchUp
+        | Wildcard
 
-    /// 
-    let getWinnerTeam rating = leadingTeams PositiveNum.numOne rating
+    type QuarterFinalMatchUp = QuarterFinalTeam * QuarterFinalTeam
 
+    type QuarterFinalWinner = QuarterFinalMatchUp
 
-module Team =
-    
-    /// Did team A give right answer question Q
-    let getAnswer gameDay questionNumber team = 
-            
-        gameDay.Answers 
-        |> Map.find team
-        |> Answers.getAnswer questionNumber
+    type SemifinalMatchUp = QuarterFinalWinner * QuarterFinalWinner
 
-    let bestStrike gameDay team =
-        gameDay.Answers
-        |> Map.find team
-        |> Answers.findStrike Best  
-    
-    let worstStrike gameDay team =
-        
-        gameDay.Answers
-        |> Map.find team
-        |> Answers.findStrike Worst
-        
-    
-        
-    let totalAnswered gameDay (questionNumber : QuestionNumber) team  = 
-        
-        gameDay.Answers
-        |> Map.find team
-        |> Answers.takeFirst questionNumber
-        |> Answers.sumRightAnswers
-        
-    /// Team position after question Q
-    let getPlaceAfterQuestion gameDay team questionNumber = 
-        
-        let totalAnswered' = totalAnswered gameDay questionNumber 
-
-        let rating = 
-            gameDay
-            |> GameDay.teams
-            |> Seq.map (fun team -> team, totalAnswered' team)
-            |> Rating.ofSeq
-        
-        let (_, _, place) = 
-            rating
-            |> List.find (fun (t, _, _) -> t = team)
-        place
-        
-    let getPlace gameDay team =
-        getPlaceAfterQuestion gameDay team gameDay.PackageSize
-    
-    /// Отставание команды A от лидера по состоянию на вопрос Q
-    let getGapFromTheFirstPlace gameDay team questionNumber = 
-        
-        // get rating
-        // find team
-        // find leader
-        
-        let totalAnswered' = totalAnswered gameDay questionNumber
-        let teamAnsweredOn = totalAnswered' team 
-
-        let leaderAnsweredOn = 
-            gameDay
-            |> GameDay.teams
-            |> Seq.map totalAnswered'
-            |> Seq.max
-        
-        teamAnsweredOn - leaderAnsweredOn
-        
-    let private teamPlaces gameDay team =
-        
-        let getPlaceAfterQuestion' = getPlaceAfterQuestion gameDay team
-        
-        gameDay
-        |> GameDay.allQuestions
-        |> Seq.map (fun q -> q, getPlaceAfterQuestion' q)
-        
-    
-    let bestPlace gameDay team =
-    
-        let minimumQuestions = 6 |> PositiveNum.ofInt |> Result.valueOrException
-    
-        let question, place = 
-            team
-            |> teamPlaces gameDay
-            |> Seq.filter (fun (q, _) -> q >= minimumQuestions)
-            |> Seq.minBy snd
-         
-        place, question 
-
-    let worstPlace gameDay team =
-        
-        let minimumQuestions = 6 |> PositiveNum.ofInt |> Result.valueOrException 
-        
-        let question, place = 
-            team
-            |> teamPlaces gameDay
-            |> Seq.filter (fun (q, _) -> q >= minimumQuestions)
-            |> Seq.maxBy snd
-        
-        place, question        
-    
-    let difficultAnswered gameDay team =
-        
-        gameDay.Answers
-        |> Map.find team
-        |> Answers.filter Right
-        |> Seq.map (fun q -> q, q |> Question.rightAnswers gameDay)
-        |> Seq.minBy snd
-        
-    let simplestWrongAnswered gameDay team =
-        
-        gameDay.Answers
-        |> Map.find team
-        |> Answers.filter Wrong
-        |> Seq.map (fun q -> q, q |> Question.rightAnswers gameDay)
-        |> Seq.maxBy snd
-        
-
-//module GameDay1 = 
-    
-    
-        
-type RatingPoints = decimal<Point> seq
-            
-type SeasonTable = 
-    {
-        Results : Map<Team, RatingPoints>
-        Table : SeasonRating
-        GamesCount : PositiveNum
-    }
-
-module SeasonTable = 
-    
-    let ofSeq data = 
-        
-        let create gamesCount = 
-            
-            let table = 
-                
-                data
-                |> Seq.map (fun (team, rating) -> team, rating |> Seq.sum)
-                |> Rating.ofSeq
-            
-            {
-                Table = table 
-                Results = data |> Map.ofSeq
-                GamesCount = gamesCount
-            }
-            
-        let gamesCount d =
-            d
-            |> Seq.map (snd >> Seq.length)
-            |> Seq.max
-            |> PositiveNum.ofInt
-
-        data
-        |> gamesCount
-        |> Result.map create
-
-
-    let topNResult resultsToCount seasonTable : SeasonRating = 
-            
-        let topResults allResults =
-            
-            let gamesToCount = 
-                let t = min resultsToCount seasonTable.GamesCount
-                t |> PositiveNum.value
-            
-            allResults
-            |> Seq.sortByDescending id 
-            |> Seq.take gamesToCount
-            |> Seq.sum
-        
-        seasonTable.Results
-        |> Map.toSeq
-        |> Seq.map (fun (team, results) -> team, topResults results)
-        |> Rating.ofSeq
-        
-        
-        
-type RoundOf12MatchUp = Team * Team
-
-type QuarterFinalTeam =
-    | RoundOf12Winner of RoundOf12MatchUp
-    | Wildcard
-
-type QuarterFinalMatchUp = QuarterFinalTeam * QuarterFinalTeam
-
-type QuarterFinalWinner = QuarterFinalMatchUp
-
-type SemifinalMatchUp = QuarterFinalWinner * QuarterFinalWinner
-
-type SemifinalWinner = SemifinalMatchUp
-type Final = SemifinalMatchUp * SemifinalMatchUp
-
-module Playoff =
-    
-    let private splitByTwo s =
-        
-        let groupCount =
-            let itemsCount = s |> Seq.length
-            itemsCount / 2
-        
-        s |> Seq.take groupCount,
-        s |> Seq.skip groupCount |> Seq.take groupCount
-        
-    
-    let roundOf12Pairs (best12Teams : Team seq) =
-            
-            let top6, others = splitByTwo best12Teams 
-                
-            others
-            |> Seq.rev
-            |> Seq.zip top6
-            |> Seq.map (fun (firstTeam, secondTeam) -> RoundOf12MatchUp(firstTeam, secondTeam)) 
-            
-            
-    let quarterFinalPairs roundOf12Winners =
-        
-        let priorityFirst, prioritySecond =
-            roundOf12Winners |> Seq.head, roundOf12Winners |> Seq.skip 1 |> Seq.head
-            
-        let firstHalf, secondHalf =
-            roundOf12Winners |> Seq.skip 2 |> splitByTwo
-            
-        secondHalf
-        |> Seq.rev
-        |> Seq.zip firstHalf
-        |> Seq.map (fun (one, two) -> QuarterFinalMatchUp(one, two)) 
-        |> Seq.append
-            [
-                QuarterFinalMatchUp(priorityFirst, Wildcard);
-                QuarterFinalMatchUp(prioritySecond, Wildcard)
-            ]
-            
-    let semifinalPairs quarterFinalWinners =
-        
-        let firstGroup, secondGroup =
-            quarterFinalWinners |> splitByTwo
-            
-        secondGroup
-        |> Seq.rev
-        |> Seq.zip firstGroup
-        |> Seq.map (fun (firstTeam, secondTeam) -> SemifinalMatchUp(firstTeam, secondTeam))
-        
-    let final semifinalWinners = Final(Seq.head semifinalWinners, Seq.head semifinalWinners)
-        
-        
-    
-    let playOff best12Teams =
-        
-        best12Teams
-        
-        |> roundOf12Pairs 
-        |> Seq.map RoundOf12Winner
-        
-        |> quarterFinalPairs
-        |> Seq.map QuarterFinalWinner
-        
-        |> semifinalPairs
-        |> Seq.map SemifinalWinner
-        
-        |> final
-        
-    let playoffString best12Teams =
-        
-        let sb = StringBuilder()
-        sb += sprintf "Round of 12%s" Environment.NewLine
-               
-        let teamName (team : Team) = team.Name |>  NoEmptyString.value
-        
-        let roundOf12Pairs = 
-            best12Teams
-            |> roundOf12Pairs
-            
-        let printRoundOf12Pair num (firstTeam, secondTeam) = 
-            let newPair = sprintf "R%d. %s vs %s%s" <| num + 1 <| teamName firstTeam <| teamName secondTeam <| Environment.NewLine 
-            sb += newPair
-            
-        roundOf12Pairs
-        |> Seq.iteri printRoundOf12Pair
-        
-        sb
-        ++ Environment.NewLine
-        ++ "Quarterfinal" ++ Environment.NewLine
-        ++ "Q1. Winner (R1) vs wildcard2" ++ Environment.NewLine
-        ++ "Q2. Winner (R2) vs wildcard1" ++ Environment.NewLine
-        ++ "Q3. Winner (R3) vs Winner (R6)" ++ Environment.NewLine
-        ++ "Q4. Winner (R4) vs Winner (R5)" ++ Environment.NewLine
-        ++ Environment.NewLine
-        ++ "Semifinal" ++ Environment.NewLine
-        ++ "S1. Winner (Q1) vs Winner (Q4)" ++ Environment.NewLine
-        ++ "S2. Winner (Q2) vs Winner (Q3)" ++ Environment.NewLine
-        ++ Environment.NewLine
-        ++ "Final" ++ Environment.NewLine
-        ++ "Winner (S1) vs Winner (S2)" ++ Environment.NewLine
-        ++ Environment.NewLine
-        |> Out 
+    type SemifinalWinner = SemifinalMatchUp
+    type Final = SemifinalMatchUp * SemifinalMatchUp

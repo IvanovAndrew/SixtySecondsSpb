@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>netcoreapp3.0</TargetFramework>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,6 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\SixtySeconds.Data\SixtySeconds.Data.fsproj" />
       <ProjectReference Include="..\SixtySeconds\SixtySeconds.fsproj" />
     </ItemGroup>
 

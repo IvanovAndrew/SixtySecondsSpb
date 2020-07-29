@@ -5,7 +5,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Library.fs"/>
+        <Compile Include="Errors.fs" />
+        <Compile Include="ErrorMessages.fs" />
+        <Compile Include="Common.fs" />
     </ItemGroup>
 
 </Project>

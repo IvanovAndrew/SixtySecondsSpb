@@ -1,6 +1,4 @@
-﻿module SixtySecond.GUI.Settings
-
-open Utils
+﻿module SixtySeconds.Settings
 
 type Setting =
     | TableUrl

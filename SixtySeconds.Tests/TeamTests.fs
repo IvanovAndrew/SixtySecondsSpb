@@ -6,8 +6,10 @@ open TestUtils.FsCheckUtils
 
 module ``TeamTests`` =
     
-    open Domain
+    open SixtySeconds.Domain
+    open SixtySeconds.Actions
     open Utils
+    open SixtySeconds.Common.CommonTypes
     
     let createNewTeam teams =
         

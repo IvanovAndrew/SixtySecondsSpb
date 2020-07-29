@@ -1,8 +1,7 @@
 ﻿module SpreadsheetWriter
 
-open Domain
-open Domain
-open Utils
+open SixtySeconds.Domain
+open SixtySeconds.Actions
 open SpreadsheetService
 open System
 open Google
@@ -40,7 +39,7 @@ module DataToWrite =
         }
         
 
-let write sheetOptions spreadsheetId sheetName data = 
+let write sheetOptions spreadsheetId sheetName data : Async<Result<unit, exn>> = 
     
     async {
         
@@ -67,7 +66,7 @@ let write sheetOptions spreadsheetId sheetName data =
                 // пишем число ответивших на вопрос
                 (sheetOptions.Answered, data.RightAnswersOn |> Seq.map string |> Array.ofSeq)
                 // пишем место
-                (sheetOptions.Place, data.Places |> Seq.map (fun p -> sprintf "%d-%d" <| PositiveNum.value p.From <| PositiveNum.value p.To) |> Array.ofSeq)
+                (sheetOptions.Place, data.Places |> Seq.map Place.toString |> Array.ofSeq)
                 // пишем отставание
                 (sheetOptions.Distance, data.Distance |> Seq.map string |> Array.ofSeq)
             ]
@@ -87,9 +86,9 @@ let write sheetOptions spreadsheetId sheetName data =
                     match exn with 
                     | :? AggregateException as aggrException -> 
                         match aggrException.InnerException with 
-                        | :? GoogleApiException as ex -> Error ex.Error.Message
-                        | _ -> Error exn.InnerException.Message
-                    | _ -> Error <| sprintf "%O" exn
+                        | :? GoogleApiException as ex -> Error <| (ex :> exn)
+                        | _ -> Error exn.InnerException
+                    | _ -> Error exn
                     
                 | Error e, _ -> Error e
 
