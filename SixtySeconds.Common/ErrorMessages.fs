@@ -1,0 +1,2 @@
+﻿module SixtySeconds.Common.ErrorMessages
+

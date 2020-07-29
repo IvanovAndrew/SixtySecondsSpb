@@ -2,44 +2,13 @@
 
 open FSharp.Data
 
-open Utils
-open Domain
+open SixtySeconds.Domain
+open SixtySeconds.Actions
 
-type ParsingError =
-    | MissingSheetName
-    | MissingTournamentName
-    | MissingAnswersCount
-    | TeamParsingError of string
-    | AnswersParsingError of string
-    | SheetNotFound of string
-    | DuplicatedTeam of Team
-    | SeasonHasNotStarted
+open SixtySeconds.Common.Errors
+open SixtySeconds.Common.CommonTypes
     
-    
-type WebRequestError = 
-    | PageNotFound of string
-    | UnexpectedResponseBody 
-    
-type SixtySecondsError =
-    | ParsingError of ParsingError
-    | WebRequestError of WebRequestError
-    
-    
-let errorToString = function
-    | ParsingError error ->
-        match error with 
-        | MissingSheetName -> "Missing sheet name"
-        | MissingTournamentName -> "Missing tournament name"
-        | MissingAnswersCount -> "Missing answers count"
-        | AnswersParsingError err -> sprintf "Can not answers. %s" err
-        | TeamParsingError err -> sprintf "Can not parse team. %s" err
-        | SheetNotFound sheetName -> sprintf "Sheet %s not found" sheetName
-        | SeasonHasNotStarted -> "Season hasn't started yet"
-        | DuplicatedTeam team -> sprintf "Team %s is already added " <| NoEmptyString.value team.Name
-    | WebRequestError error ->
-        match error with
-        | PageNotFound url -> sprintf "Page %s not found" url
-        | UnexpectedResponseBody -> "Unexpected response body"
+
 
 let asyncLoadDocument url = 
     
@@ -48,7 +17,7 @@ let asyncLoadDocument url =
         let! response = Http.AsyncRequest(urlString, silentHttpErrors = true)
 
         let result = 
-            if response.StatusCode <> 200 then urlString |> PageNotFound |> Error
+            if response.StatusCode <> 200 then urlString |> pageNotFound 
             else
                 match response.Body with 
                 | HttpResponseBody.Text text -> 
@@ -56,7 +25,7 @@ let asyncLoadDocument url =
                     |> String.replace "<style>@import url(https://fonts.googleapis.com/css?kit=o--8Et3j0xElSo4Jk-6CSN_pgL91BiSHK8etQbSopkk);</style>" "" 
                     |> HtmlDocument.Parse 
                     |> Ok
-                | _ -> UnexpectedResponseBody |> Error 
+                | _ -> unexpectedResponse() 
 
         return result
     }
@@ -96,7 +65,7 @@ module Attribute =
     let name (attribute : HtmlAttribute) = attribute.Name()
     let value (attribute : HtmlAttribute) = attribute.Value()
 
-let private getSheetId (document : HtmlDocument) sheetName = 
+let private getSheetId (document : HtmlDocument) (sheetName : NoEmptyString) = 
     
     let children = 
         document.Elements()
@@ -106,31 +75,29 @@ let private getSheetId (document : HtmlDocument) sheetName =
 
     let nodeOption = 
         children
-        |> Seq.tryFind (HtmlNode.innerText >> String.containsSubstring (NoEmptyString.value sheetName))
+        |> Seq.tryFind (HtmlNode.innerText >> String.containsSubstring (sheetName.Value))
         
             
     match nodeOption with 
     | Some node -> 
         node
         |> HtmlNode.descendants
-        |> Seq.filter (HtmlNode.innerText >> ((=) (NoEmptyString.value sheetName)))
+        |> Seq.filter (HtmlNode.innerText >> ((=) sheetName.Value))
         |> Seq.find (HtmlNode.attributes >> List.exists (Attribute.name >> ((=) "id")))
         |> HtmlNode.attribute "id"
         |> Attribute.value
         |> String.replace "sheet-button-" ""
         |> Ok
     | None ->
-        sheetName
-        |> NoEmptyString.value
-        |> SheetNotFound 
-        |> Error
+        sheetName.Value
+        |> sheetNotFound
         
 let private parseTeam idColumn nameColumn innerText =
             
     let teamId = idColumn |> innerText |> int
     let name = nameColumn |> innerText
     createTeam teamId name
-    |> Result.mapError TeamParsingError
+    |> expectTeamParsingError
 
 let private findSheetNode document sheetName = 
     
@@ -177,7 +144,7 @@ let parse gameName (document : HtmlDocument) =
         getSheetTitle()
         |> String.replace "Таблица " ""
         |> NoEmptyString.ofString
-        |> Result.mapError (fun _ -> MissingTournamentName)
+        |> expectMissingTournamentName
 
     let parserOptions (sheetNode : HtmlNode) = 
         
@@ -246,7 +213,7 @@ let parse gameName (document : HtmlDocument) =
             let addTeam gameDay =
                 gameDay
                 |> GameDay.withTeam team answers
-                |> Result.mapError (fun _ -> DuplicatedTeam team)
+                |> Result.mapError (fun _ -> team.Name.Value |> DuplicatedTeam)
             
             gameDaySoFar
             |> Result.bind addTeam
@@ -270,7 +237,7 @@ let parse gameName (document : HtmlDocument) =
                 options.AnswersColumns
                 |> List.length
                 |> PositiveNum.ofInt
-                |> Result.mapError (fun _ -> MissingAnswersCount)
+                |> expectMissingAnswers
                 |> Result.map (fun num -> {Tournament = tournament; Name = gameName; Answers = Map.empty; PackageSize = num})
 
             return! parseGameDay options sheetNode sheetId emptyGameDay
@@ -322,7 +289,7 @@ let parseTotal document =
             let! sheetNode =
                 "60 сек"
                 |> NoEmptyString.ofString
-                |> Result.mapError (fun _ -> MissingTournamentName)
+                |> expectMissingTournamentName
                 |> Result.bind (findSheetNode document)
                  
                 
@@ -351,7 +318,7 @@ let parseTotal document =
             let seasonTable data =
                 data
                 |> SeasonTable.ofSeq
-                |> Result.mapError (fun _ -> SeasonHasNotStarted)
+                |> expectSeasonHasNotStartedError
 
             return!
                 linesWithTeams

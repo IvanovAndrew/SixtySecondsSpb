@@ -3,8 +3,10 @@
 open System
 open System.Windows
 open Domain
-open Utils
-open Utils.PositiveNum
+
+open SixtySeconds.Common.CommonTypes
+open SixtySeconds.Common.CommonTypes.PositiveNum
+
 open Elmish.WPF
 
 let topNTeams = 12
@@ -59,8 +61,8 @@ let showTable count model =
     let filtered = 
         let teamRating i (team, rating, place) = 
             {
-                Id = team.ID |> Utils.PositiveNum.value
-                Name = team.Name |> Utils.NoEmptyString.value
+                Id = team.ID |> PositiveNum.value
+                Name = team.Name |> NoEmptyString.value
                 Place = i + 1; 
                 Rating = rating
                 Team = team

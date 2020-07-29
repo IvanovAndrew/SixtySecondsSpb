@@ -5,8 +5,8 @@ open System.Windows
 open Domain
 open Elmish.WPF
 
-open Utils
-open Utils.PositiveNum
+open SixtySeconds.Common.CommonTypes
+open SixtySeconds.Common.CommonTypes.PositiveNum
 open SixtySecond.GUI.Settings
 open SpreadsheetWriter
 

@@ -1,7 +1,6 @@
 ﻿module SixtySeconds.GUI
 
 open System
-open System.Text.RegularExpressions
 open System.Windows
 
 open Elmish
@@ -9,11 +8,9 @@ open Elmish.WPF
 
 open SixtySecond.GUI.Settings
 open SixtySeconds.Views
+open SixtySeconds.Common.CommonTypes
 
 open Domain
-open Parser
-open Utils
-open Utils
 
 let validateGameDay = NoEmptyString.ofString 
 
