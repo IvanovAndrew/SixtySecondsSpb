@@ -13,6 +13,7 @@ let errorToString = function
         | SheetNotFound sheetName -> sprintf "Sheet %s not found" sheetName
         | SeasonHasNotStarted -> "Season hasn't started yet"
         | DuplicatedTeam team -> sprintf "Team %s is already added " team
+        | UnexpectedSite url -> sprintf "Wrong site type %s" url
     | WebRequestError error ->
         match error with
         | PageNotFound url -> sprintf "Page %s not found" url

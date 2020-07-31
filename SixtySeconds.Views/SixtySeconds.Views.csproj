@@ -13,6 +13,12 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Update="ChooseUrl.xaml.cs">
+      <DependentUpon>ChooseUrl.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="MainWindow.xaml.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>
@@ -26,5 +32,14 @@
     <Resource Include="Images\favicon.ico" />
     <Resource Include="Images\chart.ico" />
     <Resource Include="Images\GoogleSpreadsheet.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Update="ChooseUrl.xaml">
+      <Generator></Generator>
+    </Page>
+    <Page Update="MainWindow.xaml">
+      <Generator></Generator>
+    </Page>
   </ItemGroup>
 </Project>

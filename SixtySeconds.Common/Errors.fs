@@ -11,6 +11,7 @@ module Errors =
     | SheetNotFound of string
     | DuplicatedTeam of string
     | SeasonHasNotStarted
+    | UnexpectedSite of string
     
     
     type WebRequestError = 

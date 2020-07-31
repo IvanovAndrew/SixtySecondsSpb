@@ -426,11 +426,11 @@ let update message model =
         
         {model with Status = e |> errorToString |> Error |> Some}, []
     
-let bindings (wrap : Message -> 'a) = 
-    (fun () -> [
+let bindings() = 
+    [
         "FilterQuestions" |> Binding.twoWay(
                                              (fun m -> match m.RatingType with Threshold _ -> true | _ -> false),
-                                              RatingTypeChanged >> wrap
+                                              RatingTypeChanged
                                          )
         
         "ThresholdVisibility" |> Binding.oneWay (fun m -> match m.RatingType with Threshold _ -> Visibility.Visible | _ -> Visibility.Collapsed)
@@ -447,7 +447,7 @@ let bindings (wrap : Message -> 'a) =
                                 )
         "QuestionThreshold" |> Binding.twoWay(
             (fun m -> (match m.RatingType with All -> maxThresholdValue m.GameDay | Threshold t -> t) |> Converter.toInt |> float ),
-            int >> Converter.rightAnswerFromInt >> QuestionThresholdChanged >> wrap
+            int >> Converter.rightAnswerFromInt >> QuestionThresholdChanged
         )
         
         "MinQuestionThreshold" |> Binding.oneWay(fun m -> minThresholdValue m.GameDay |> int |> float)
@@ -455,12 +455,12 @@ let bindings (wrap : Message -> 'a) =
         
         "QuestionsCount" |> Binding.oneWay (fun m -> m.QuestionsCount)
         
-        "ShowGameDayTable" |> Binding.cmd(UpdateRatingTable |> wrap)
+        "ShowGameDayTable" |> Binding.cmd UpdateRatingTable
         
         "SelectionChanged" |> Binding.subModelSelectedItem(
                                                               "GameDayTable",
                                                               (fun m -> m.SelectedTeam |> Option.map (fun team -> team.ID)),
-                                                              TeamSelected >> wrap
+                                                              TeamSelected
                                                           )
         
         "TeamGameDayInfoVisibility" |> Binding.oneWay (fun m -> match m.SelectedTeam with Some _ -> Visibility.Visible | _ -> Visibility.Hidden)
@@ -488,13 +488,13 @@ let bindings (wrap : Message -> 'a) =
         "ShowChartTitle" |> Binding.oneWay (fun m -> sprintf "Show chart for game %s" m.GameDay.Name.Value)
         "TeamIds" |> Binding.twoWayValidate(
                                                 (fun m -> m.ChartTeamIds),
-                                                CustomTeamsEntered >> wrap,
+                                                CustomTeamsEntered,
                                                 (fun m -> validateTeamIds m.GameDay m.ChartTeamIds)
                                             )
         "BestTeams" |> Binding.twoWayValidate
                     (
                         (fun m -> m.BestTeams),
-                        BestTeamsCountEntered >> wrap,
+                        BestTeamsCountEntered,
                         (fun m -> validateBestTeams m.BestTeams)
                     )
         
@@ -502,13 +502,13 @@ let bindings (wrap : Message -> 'a) =
                     (fun model ->
                          model
                          |> showChartButtonAvailable
-                         |> Result.map (fun data -> data |> Places |> ShowChart |> wrap)
+                         |> Result.map (Places >> ShowChart)
                      )
         "ShowAnswersCharts" |> Binding.cmdIf
                     (fun model ->
                          model
                          |> showChartButtonAvailable
-                         |> Result.map (fun data -> data |> Answers |> ShowChart |> wrap)
+                         |> Result.map (Answers >> ShowChart)
                      )
         "ChartsErrorMessageVisibility" |> Binding.oneWay(fun model -> model.ChartsErrorStatus |> Option.isSome)
         "ChartsErrorMessage" |> Binding.oneWay(fun model -> model.ChartsErrorStatus |> Option.defaultValue "")
@@ -517,7 +517,7 @@ let bindings (wrap : Message -> 'a) =
         "TeamID" |> Binding.twoWayValidate
                     (
                         (fun m -> m.TeamId),
-                        TeamIdEntered >> wrap,
+                        TeamIdEntered,
                         (fun m ->
                             let validate s =
                                 if String.isEmpty s then Ok()
@@ -532,33 +532,33 @@ let bindings (wrap : Message -> 'a) =
                 
         "SpreadsheetID" |> Binding.twoWay(
             (fun m -> m.SpreadSheetId),
-            SpreadsheetIdEntered >> wrap
+            SpreadsheetIdEntered
             )
 
         "SheetName" |> Binding.twoWay(
             (fun m -> m.SheetName),
-            SpreadsheetNameEntered >> wrap
+            SpreadsheetNameEntered
             )
 
         "TeamAnsweredColumn" |> Binding.twoWay(
             (fun model -> model.SheetOptions.TeamAnswered),
-            TeamAnsweredColumnChanged >> wrap
+            TeamAnsweredColumnChanged
             )
         "RightAnswersColumn" |> Binding.twoWay(
             (fun model -> model.SheetOptions.Answered),
-            RightAnswersColumnChanged >> wrap
+            RightAnswersColumnChanged
             )
         "PlacesColumn" |> Binding.twoWay(
             (fun model -> model.SheetOptions.Place),
-            PlacesColumnChanged >> wrap
+            PlacesColumnChanged
             )
         "DistanceColumn" |> Binding.twoWay(
             (fun model -> model.SheetOptions.Distance),
-            DistanceColumnChanged >> wrap
+            DistanceColumnChanged
             )
         "FirstQuestionColumn" |> Binding.twoWayValidate(
             (fun model -> model.SheetOptions.FirstQuestion |> string),
-            FirstQuestionColumnChanged >> wrap,
+            FirstQuestionColumnChanged,
             (fun model -> model.SheetOptions.FirstQuestion |> PositiveNum.ofInt)
             )
         
@@ -566,14 +566,14 @@ let bindings (wrap : Message -> 'a) =
             |> Binding.cmdIf(fun model -> 
                                 model 
                                 |> writeToSpreadSheetButtonAvailable 
-                                |> Result.map (fun data -> wrap(WriteToSpreadsheetRequested data)))
+                                |> Result.map WriteToSpreadsheetRequested)
         "ErrorMessageVisibility" |> Binding.oneWay (fun m -> m.Status |> showErrorMessage )
         "SuccessMessageVisibility" |> Binding.oneWay (fun m -> m.Status |> showSuccessMessage)
         "StatusMessage" |> Binding.oneWay(fun model -> 
                                                 model.Status 
                                                 |> Option.map(function Ok m -> m | Error e -> e) 
                                                 |> Option.defaultValue "")
-    ])
+    ]
     
 let writeToSpreadsheet (data, model) =
     

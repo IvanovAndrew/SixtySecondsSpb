@@ -12,7 +12,7 @@
     <Compile Include="Settings.fs" />
     <Compile Include="SeasonTableApp.fs" />
     <Compile Include="GameDayApp.fs" />
-    <Compile Include="MainPageApp.fs" />
+    <Compile Include="UrlApp.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

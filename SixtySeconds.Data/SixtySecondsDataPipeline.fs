@@ -34,8 +34,9 @@ module SixtySecondsDataPipeline =
                 
                 let parse =
                     match url with
-                    | Sec60 -> Parser.parseTotalFrom60SecSite
+                    | Sec60Season -> Parser.parseTotalFrom60SecSite
                     | Google -> Parser.parseTotalFromGoogleSpreadsheet
+                    | _ -> (fun _ -> url |> Url.value |> UnexpectedSite |> Error)
                 
                 return
                     htmlDocument

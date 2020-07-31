@@ -1,5 +1,6 @@
-﻿module MainPageApp
+﻿module SixtySeconds.Views
 
+open System.Windows
 open Elmish.WPF
 
 open SixtySeconds.Infrastructure
@@ -10,7 +11,7 @@ open SixtySeconds.Common.Errors
 open SixtySeconds.Common.ErrorMessages
     
 [<RequireQualifiedAccess>]
-module MainApp = 
+module UrlApp = 
     
     type Model =
         { 
@@ -83,35 +84,54 @@ module MainApp =
             
             model, []
         
-    let bindings wrap : Binding<Model, Message> list = [
-        "Url" |> Binding.twoWayValidate(
-            (fun m -> m.TableUrl),
-            (fun newUrl -> newUrl |> TableUrlEntered |> wrap),
-            (fun model -> model.TableUrl |> validateUrl))
+    let bindings() =
+            [
+            "Url" |> Binding.twoWayValidate(
+                (fun m -> m.TableUrl),
+                (fun newUrl -> newUrl |> TableUrlEntered),
+                (fun model -> model.TableUrl |> validateUrl))
 
-        "Day" |> Binding.twoWayValidate(
-            (fun model -> model.Day),
-            (fun day -> day |> GameDayEntered |> wrap),
-            (fun m -> m.Day |> validateGameDay))
+            "Day" |> Binding.twoWayValidate(
+                (fun model -> model.Day),
+                (fun day -> day |> GameDayEntered),
+                (fun m -> m.Day |> validateGameDay))
 
-        "LoadGameDay" |> Binding.cmdIf(
-                                    fun model -> 
-                                        result {
-                                            let! url = validateUrl model.TableUrl
-                                            let! day = validateGameDay model.Day
-
-                                            return GameDayRequested(url, day)
-                                        })
+            "LoadGameDay" |> Binding.cmdIf(
+                                fun model -> 
+                                    result {
+                                        let! url = validateUrl model.TableUrl
+                                        let! day = validateGameDay model.Day
     
-        "LoadSeasonTable" |> Binding.cmdIf(
-            fun model -> model.TableUrl |> Url.create |> Result.map SeasonTableRequested)
+                                        return GameDayRequested(url, day)
+                                    })
         
-        "ErrorMessage" |> Binding.oneWay(fun model -> model.ErrorMessage |> Option.defaultValue "")
-    ]
-    
-    
-    
-    
+            "LoadSeasonTable" |> Binding.cmdIf(
+                fun model ->
+                    model.TableUrl
+                    |> Url.create
+                    |> Result.map SeasonTableRequested)
+            
+            "SeasonTableButtonVisibility" |> Binding.oneWay
+                                        (fun m -> 
+                                            match validateUrl m.TableUrl with
+                                            | Ok url -> match url with Sec60Season | Google -> Visibility.Visible | _ -> Visibility.Collapsed
+                                            | Error e -> Visibility.Collapsed
+                                        )
+            "Gameday60SecButtonVisibility" |> Binding.oneWay
+                                        (fun m -> 
+                                            match validateUrl m.TableUrl with
+                                            | Ok url -> match url with Sec60Game -> Visibility.Visible | _ -> Visibility.Collapsed
+                                            | Error e -> Visibility.Collapsed
+                                        )
+            
+            "GamedayGoogleButtonVisibility" |> Binding.oneWay(fun m -> 
+                                            match validateUrl m.TableUrl with
+                                            | Ok url -> match url with Google -> Visibility.Visible | _ -> Visibility.Collapsed
+                                            | Error e -> Visibility.Collapsed
+                                    )
+            
+            "ErrorMessage" |> Binding.oneWay(fun model -> model.ErrorMessage |> Option.defaultValue "")
+        ]
         
     let loadGameDay (url, game) =
         async {

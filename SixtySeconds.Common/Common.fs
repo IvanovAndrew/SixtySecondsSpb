@@ -151,10 +151,13 @@ module Url =
     let value (Url url) = url
     
 
-let (|Sec60|Google|) site =
+let (|Sec60Season|Sec60Game|Google|Unknown|) site =
         
-    if site |> Url.value |> String.containsSubstring "https://60sec.online/"
-    then Sec60 else Google
+    match site |> Url.value with
+    | x when x |> String.containsSubstring "https://60sec.online/season/" -> Sec60Season  
+    | x when x |> String.containsSubstring "https://60sec.online/game/" -> Sec60Game
+    | x when x |> String.containsSubstring "https://docs.google.com/spreadsheets/" -> Google
+    | _ -> Unknown
     
 module Seq =
     let exceptLast seq =

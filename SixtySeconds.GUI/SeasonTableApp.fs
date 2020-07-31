@@ -1,4 +1,4 @@
-﻿module SeasonTableApp
+module SeasonTableApp
 
 open System
 open System.Windows
@@ -43,7 +43,7 @@ let initModel (seasonTable : SeasonTable) =
 
 let gamesToCountChanged gamesToCount model = 
     match gamesToCount |> PositiveNum.ofInt with
-    | Ok g -> {model with GamesToCount = g}
+    | Ok games -> {model with GamesToCount = games}
     | Error _ -> model
 
 let validateGamesToCount (seasonTable : SeasonTable) games = 
@@ -105,35 +105,33 @@ let update message model =
     | ShowPlayoff rating -> showPlayoff rating model
     | CopyToClipboard rating -> copyToClipboard rating model
 
-let bindings wrap = 
-    (fun () -> [
+let bindings() = 
+    [
         "GamesToCount" |> Binding.twoWay(
             (fun m -> m.GamesToCount.Value |> float),
-            (fun g m -> g |> int |> GamesToCountChanged |> wrap)
+            (fun g m -> g |> int |> GamesToCountChanged)
             )
         "MaxValue" |> Binding.oneWay(fun m -> m.MaximumGames.Value |> float)
         "ShowSeasonTable" |> Binding.cmd(
                 fun model -> 
                     model.GamesToCount
                     |> ShowSeasonTable 
-                    |> wrap
             )
         "ShowPlayOff" |> Binding.cmdIf(
                 fun model ->
                     model.FilteredSeasonTable
                     |> (fun v -> if Seq.isEmpty v then Error () else Ok v)
-                    |> Result.map (ShowPlayoff >> wrap)
+                    |> Result.map ShowPlayoff
                     )
         
         "CopyToClipboard" |> Binding.cmdIf(
                 fun model ->
                         model.FilteredSeasonTable
                         |> (fun v -> if Seq.isEmpty v then Error() else Ok v)
-                        |> Result.map (CopyToClipboard >> wrap)
+                        |> Result.map CopyToClipboard
                     )
         
         "Playoff" |> Binding.oneWay (fun model -> model.Playoff |> Option.defaultValue "")
-                                      
         
         "FilteredSeasonTable" |> Binding.subModelSeq(
             (fun m -> m.FilteredSeasonTable),
@@ -143,4 +141,4 @@ let bindings wrap =
                 "TeamName" |> Binding.oneWay (fun (_, item) -> item.Name)
                 "Rating" |> Binding.oneWay (fun (_, item) -> item.Rating)
                 ]))
-    ])
+    ]

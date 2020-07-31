@@ -7,7 +7,6 @@ open Elmish
 open Elmish.WPF
 
 open GameDayApp
-open MainPageApp
 open SixtySeconds.Views
 open SixtySeconds.Common.CommonTypes
 
@@ -21,7 +20,7 @@ type AppWindow =
 
 type Model =
     {
-        FirstPageState : MainApp.Model
+        FirstPageState : UrlApp.Model
         SeasonTableState : SeasonTableApp.Model option
         GameDayState : GameDayApp.Model option
         
@@ -29,13 +28,13 @@ type Model =
     }
     
 type CmdMsg =
-    | MainPageCmd of MainApp.CmdMsg
+    | MainPageCmd of UrlApp.CmdMsg
     | GameDayPageCmd of GameDayApp.CmdMsg
 
 let init() =
 
     { 
-        FirstPageState = MainApp.init() 
+        FirstPageState = UrlApp.init() 
         SeasonTableState = None
         GameDayState = None
         
@@ -48,7 +47,7 @@ type NewPage =
     | ToGameDayPage of GameDay
 
 type Message =
-    | MainPageMessage of MainApp.Message
+    | UrlPageMessage of UrlApp.Message
     | GameDayPageMessage of GameDayApp.Message
     | SeasonTableMessage of SeasonTableApp.Message
     
@@ -65,8 +64,8 @@ let resultToMessage successMessage errorMessage result =
 
 let update msg (model : Model) =
     match model.Window, msg with
-    | Main, MainPageMessage msg ->
-        let nextState, s = MainApp.update msg model.FirstPageState
+    | Main, UrlPageMessage msg ->
+        let nextState, s = UrlApp.update msg model.FirstPageState
         {model with FirstPageState = nextState}, s |> List.map MainPageCmd
         
     | SeasonTable, SeasonTableMessage msg ->
@@ -108,41 +107,18 @@ let validateGameDay = NoEmptyString.ofString
 let validateUrl = Url.create
 
 let bindings () : Binding<Model, Message> list =
-    
     [
-        "Url" |> Binding.twoWayValidate(
-            (fun m -> m.FirstPageState.TableUrl),
-            (fun newUrl -> newUrl |> MainApp.TableUrlEntered |> MainPageMessage),
-            (fun model -> model.FirstPageState.TableUrl |> validateUrl))
-
-        "Day" |> Binding.twoWayValidate(
-            (fun model -> model.FirstPageState.Day),
-            (fun day -> day |> MainApp.GameDayEntered |> MainPageMessage),
-            (fun m -> m.FirstPageState.Day |> validateGameDay))
-
-        "LoadGameDay" |> Binding.cmdIf(
-                                    fun model -> 
-                                        result {
-                                            let! url = validateUrl model.FirstPageState.TableUrl
-                                            let! day = validateGameDay model.FirstPageState.Day
-
-                                            return MainPageMessage <| MainApp.GameDayRequested(url, day)
-                                        })
-    
-        "LoadSeasonTable" |> Binding.cmdIf(
-            fun model ->
-                model.FirstPageState.TableUrl
-                |> Url.create
-                |> Result.map (MainApp.SeasonTableRequested >> MainPageMessage))
-        
-        "ErrorMessage" |> Binding.oneWay(fun model -> model.FirstPageState.ErrorMessage |> Option.defaultValue "")
-        
+        "UrlPageWin" |> Binding.subModel(
+            (fun m -> m.FirstPageState),
+            snd,
+            UrlPageMessage,
+            UrlApp.bindings)
         
         "SeasonTableWin" |> Binding.subModelWin(
             (fun m -> match m.Window, m.SeasonTableState with SeasonTable, Some st -> WindowState.Visible st | _ -> WindowState.Closed), 
             snd, 
-            id,
-            SeasonTableApp.bindings SeasonTableMessage,
+            SeasonTableMessage,
+            SeasonTableApp.bindings,
             (fun () -> SixtySeconds.Views.SeasonTableWindow(Owner = Application.Current.MainWindow)),
             onCloseRequested = SwitchPage ToMainPage,
             isModal = true
@@ -151,8 +127,8 @@ let bindings () : Binding<Model, Message> list =
         "GameDayWindow" |> Binding.subModelWin(
             (fun m -> match m.Window, m.GameDayState with GameDay, Some gd -> WindowState.Visible gd | _ -> WindowState.Closed), 
             snd, 
-            id,
-            GameDayApp.bindings GameDayPageMessage,
+            GameDayPageMessage,
+            GameDayApp.bindings,
             (fun () -> SixtySeconds.Views.GameDayWindow(Owner = Application.Current.MainWindow)),
             onCloseRequested = SwitchPage ToMainPage,
             isModal = true
@@ -161,7 +137,7 @@ let bindings () : Binding<Model, Message> list =
 
 let private createWindow() = 
     
-    let window = MainWindow()
+    let window = SixtySeconds.Views.MainWindow()
     window
     
 let toSeasonPage st = st |> ToSeasonTablePage |> SwitchPage
@@ -169,7 +145,7 @@ let toGamedayPage gd = gd |> ToGameDayPage |> SwitchPage
     
 let toCmd = function
     | MainPageCmd cmd ->
-        MainApp.toCmd cmd MainPageMessage toSeasonPage toGamedayPage
+        UrlApp.toCmd cmd UrlPageMessage toSeasonPage toGamedayPage
     | GameDayPageCmd cmd ->
         GameDayApp.toCmd cmd GameDayPageMessage
         
