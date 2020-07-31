@@ -1,4 +1,4 @@
-﻿namespace SixtySeconds
+namespace SixtySeconds
 
 module Actions = 
 
@@ -323,13 +323,13 @@ module Actions =
             |> Result.map create
 
 
-        let topNResult resultsToCount seasonTable : SeasonRating = 
+        let topNResult (resultsToCount : PositiveNum) seasonTable : SeasonRating = 
                 
             let topResults allResults =
                 
-                let gamesToCount = 
-                    let t = min resultsToCount seasonTable.GamesCount
-                    t.Value
+                let gamesToCount =
+                    let playedGames = allResults |> Seq.length 
+                    min playedGames resultsToCount.Value 
                 
                 allResults
                 |> Seq.sortByDescending id 
