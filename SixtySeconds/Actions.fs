@@ -264,7 +264,7 @@ module Actions =
                 |> Seq.filter (fun (q, _) -> q >= minimumQuestions)
                 |> Seq.minBy snd
              
-            place, question 
+            {Place = place; Question = question} 
 
         let worstPlace gameDay team =
             
@@ -276,7 +276,7 @@ module Actions =
                 |> Seq.filter (fun (q, _) -> q >= minimumQuestions)
                 |> Seq.maxBy snd
             
-            place, question        
+            {Place = place; Question = question}        
         
         let difficultAnswered gameDay team =
             

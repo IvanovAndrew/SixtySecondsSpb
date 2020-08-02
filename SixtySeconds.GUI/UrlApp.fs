@@ -1,6 +1,7 @@
 ﻿module SixtySeconds.Views
 
 open System.Windows
+open Elmish
 open Elmish.WPF
 
 open SixtySeconds.Infrastructure
@@ -29,7 +30,8 @@ module UrlApp =
         
     type CmdMsg =
         | LoadSeasonTable of url : Url
-        | LoadGameDay of url : Url * gameName : NoEmptyString 
+        | LoadGameDay of url : Url * gameName : NoEmptyString
+        | StoreValues of (Setting * string) list
         
     type Message =
         | TableUrlEntered of string
@@ -40,14 +42,15 @@ module UrlApp =
         
         | GameDayEntered of string
             
-        | GameDayRequested of Url * NoEmptyString
+        | GameDayRequested of Url * GameName
         | OnGameDayLoadedSuccess of GameDay
         | OnGameDayLoadedError of SixtySecondsError
-
-        | StoreValues of (Setting * string) list
         
     let validateGameDay = NoEmptyString.ofString 
     let validateUrl = Url.create
+    
+    let private withError error model =
+        {model with ErrorMessage = error |> errorToString |> Some}
         
     let update msg model =
         match msg with
@@ -58,31 +61,18 @@ module UrlApp =
         | SeasonTableRequested url -> model, [LoadSeasonTable(url)]
 
         | OnLoadSeasonTableSuccess seasonTable ->
-            StoreValues [TableUrl, model.TableUrl] |> ignore
-            // TODO 
-            model, []
             
+            model, [StoreValues [TableUrl, model.TableUrl]]
             
-        | OnLoadSeasonTableError error ->
-            {model with ErrorMessage = error |> errorToString |> Some }, []
+        | OnLoadSeasonTableError error -> model |> withError error, []
         
         | GameDayRequested (url, gameName) -> model, [LoadGameDay(url, gameName)]
             
         | OnGameDayLoadedSuccess gameDay ->
             
-            ignore <| StoreValues [(TableUrl, model.TableUrl); (Game, gameDay.Name.Value)]
-            // TODO 
-            model, []
+            model, [StoreValues [(TableUrl, model.TableUrl); (Game, gameDay.Name.Value)]]
             
-        | OnGameDayLoadedError error ->
-            {model with ErrorMessage = error |> errorToString |> Some}, []
-                
-        | StoreValues values ->
-            
-            values
-            |> List.iter (fun (setting, value) -> Config.save setting value)
-            
-            model, []
+        | OnGameDayLoadedError error -> model |> withError error, []
         
     let bindings() =
             [
@@ -132,20 +122,14 @@ module UrlApp =
             
             "ErrorMessage" |> Binding.oneWay(fun model -> model.ErrorMessage |> Option.defaultValue "")
         ]
-        
-    let loadGameDay (url, game) =
-        async {
-            let! document = url |> Parser.asyncLoadDocument 
             
-            return
-                document
-                |> expectWebRequestError
-                |> Result.bind (Parser.parse game >> expectParsingError)
-        }
+    let storeValues values = 
+        values
+        |> List.iter (fun (setting, value) -> Config.save setting value)
+        
+    let toCmd cmdMsg =
     
-    let toCmd cmdMsg (wrap : Message -> 'a) toSeasonPage toGamedayPage =
-    
-        let ofSuccess result success error =
+        let ofSuccess success error result =
             match result with
             | Ok value -> success value
             | Error e -> error e
@@ -154,16 +138,20 @@ module UrlApp =
         
         match cmdMsg with 
         | LoadSeasonTable url ->
-            let ofSuccess' result =
-                ofSuccess result toSeasonPage (OnLoadSeasonTableError >> wrap)
-                
-            let ofError' = ofError >> (OnLoadSeasonTableError >> wrap)
+
+            let ofSuccess' = ofSuccess OnLoadSeasonTableSuccess OnLoadSeasonTableError
+            let ofError' = ofError >> OnLoadSeasonTableError
             
-            Elmish.Cmd.OfAsync.either SixtySecondsApi.parseTotal url ofSuccess' ofError'
+            Cmd.OfAsync.either SixtySecondsApi.parseTotal url ofSuccess' ofError'
             
         | LoadGameDay(url, gameName) ->
             
-            let ofSuccess' result = ofSuccess result toGamedayPage (OnGameDayLoadedError >> wrap)
-            let ofError' = ofError >> (OnGameDayLoadedError >> wrap)
+            let ofSuccess' = ofSuccess OnGameDayLoadedSuccess OnGameDayLoadedError
+            let ofError' = ofError >> OnGameDayLoadedError
             
-            Elmish.Cmd.OfAsync.either SixtySecondsApi.parseGameDay (url, gameName) ofSuccess' ofError'
+            Cmd.OfAsync.either SixtySecondsApi.parseGameDay (url, gameName) ofSuccess' ofError'
+            
+        | StoreValues values ->
+            
+            storeValues values
+            Cmd.none

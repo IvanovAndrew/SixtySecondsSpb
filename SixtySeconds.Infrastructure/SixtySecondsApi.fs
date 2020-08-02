@@ -11,14 +11,8 @@ module SixtySecondsApi =
     let teamBestPlace arg =
         arg |> (SixtySecondsWorkflow.teamBestPlace >> SixtySecondsProgramInterpreter.interpretSimple)
         
-    let teamBestQuestion arg =
-        arg |> (SixtySecondsWorkflow.teamBestQuestion >> SixtySecondsProgramInterpreter.interpretSimple)
-        
     let teamWorstPlace arg =
         arg |> (SixtySecondsWorkflow.teamWorstPlace >> SixtySecondsProgramInterpreter.interpretSimple)
-        
-    let teamWorstQuestion arg =
-        arg |> (SixtySecondsWorkflow.teamWorstQuestion >> SixtySecondsProgramInterpreter.interpretSimple)
         
     let teamBestStrike arg =
         arg |> (SixtySecondsWorkflow.teamBestStrike >> SixtySecondsProgramInterpreter.interpretSimple)
@@ -38,8 +32,14 @@ module SixtySecondsApi =
     let teamSimpleWrongAnsweredQuestionCount arg =
         arg |> (SixtySecondsWorkflow.teamSimpleWrongAnsweredQuestionCount >> SixtySecondsProgramInterpreter.interpretSimple)
         
+    let teamPerformance arg =
+        arg |> (SixtySecondsWorkflow.teamPerformance >> SixtySecondsProgramInterpreter.interpretSimple)
+        
     let parseTotal arg =
         arg |> (SixtySecondsWorkflow.parseTotal >> SixtySecondsProgramInterpreter.interpret)
         
     let parseGameDay arg =
         arg |> (SixtySecondsWorkflow.parseGameDay >> SixtySecondsProgramInterpreter.interpret)
+        
+    let showChart arg =
+        arg |> (SixtySecondsWorkflow.showChart >> SixtySecondsProgramInterpreter.interpretSimple)

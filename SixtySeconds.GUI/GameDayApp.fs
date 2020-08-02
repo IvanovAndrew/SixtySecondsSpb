@@ -5,6 +5,7 @@ open System.Windows
 open SixtySeconds.Common.Errors
 open SixtySeconds.Domain
 open SixtySeconds.Actions
+open Elmish
 open Elmish.WPF
 
 open SixtySeconds.Common.CommonTypes
@@ -12,72 +13,9 @@ open SixtySeconds.Infrastructure
 open SixtySeconds.Settings
 open SpreadsheetWriter
 
-open SixtySeconds.Common.Errors
 open SixtySeconds.Common.ErrorMessages
-
-let private fromAsyncResult v = v |> Async.RunSynchronously |> Result.valueOrException
-
-type TeamPerformance =
-    {
-        BestPlace : string
-        BestPlaceAfterQuestion : int
-        WorstPlace : string
-        WorstPlaceAfterQuestion : int
-        BestStrike : string
-        WorstStrike : string
-        DifficultAnsweredQuestion : int
-        DifficultAnsweredQuestionCount : int
-        SimplestWrongAnsweredQuestion : int
-        SimplestWrongAnsweredQuestionCount : int
-    }
-
     
 let teamName (team : Team) = team.Name.Value
-let teamPerformance (gameDay, team) =
-    
-    async {
-        let! bestPlace = SixtySecondsApi.teamBestPlace (team, gameDay)
-        let! bestPlaceQuestion = SixtySecondsApi.teamBestQuestion (team, gameDay)
-        let! worstPlace  = SixtySecondsApi.teamWorstPlace (team, gameDay)
-        let! worstPlaceQuestion = SixtySecondsApi.teamWorstQuestion (team, gameDay)
-        let! bestStrike = SixtySecondsApi.teamBestStrike (team, gameDay)
-        let! worstStrike = SixtySecondsApi.teamWorstStrike (team, gameDay)
-        let! difficultAnsweredQuestion = SixtySecondsApi.teamDifficultAnsweredQuestion (team, gameDay)
-        let! difficultAnsweredQuestionCount = SixtySecondsApi.teamDifficultAnsweredQuestionCount (team, gameDay)
-        let! simplestWrongAnsweredQuestion = SixtySecondsApi.teamSimpleWrongAnsweredQuestion (team, gameDay)
-        let! simplestWrongAnsweredQuestionCount = SixtySecondsApi.teamSimpleWrongAnsweredQuestionCount (team, gameDay)
-        
-        let teamPerformance =
-            result {
-                
-                let! bp = bestPlace
-                let! bpq = bestPlaceQuestion
-                let! wp = worstPlace
-                let! wpq = worstPlaceQuestion
-                let! bs = bestStrike
-                let! ws = worstStrike
-                let! daq = difficultAnsweredQuestion
-                let! daqc = difficultAnsweredQuestionCount
-                let! swaq = simplestWrongAnsweredQuestion
-                let! swaqc = simplestWrongAnsweredQuestionCount
-                
-                return {
-                    BestPlace = Place.toString bp
-                    BestPlaceAfterQuestion = bpq 
-                    WorstPlace = Place.toString wp
-                    WorstPlaceAfterQuestion = wpq
-                    BestStrike = bs.Count |> Option.map (fun pn -> pn |> PositiveNum.value |> string) |> Option.defaultValue ""
-                    WorstStrike = ws.Count |> Option.map (fun pn -> pn |> PositiveNum.value |> string) |> Option.defaultValue ""
-                    DifficultAnsweredQuestion = daq
-                    DifficultAnsweredQuestionCount = daqc
-                    SimplestWrongAnsweredQuestion = swaq 
-                    SimplestWrongAnsweredQuestionCount = swaqc 
-                }
-            }
-        
-        return teamPerformance
-    }
-    
 
 type Model = 
     {
@@ -93,20 +31,11 @@ type Model =
         SpreadSheetId : string
         SheetName : string
         SheetOptions : SheetOptions
-        Status : Result<string, string> option
+        Status : Result<string, string>
         
         SelectedTeam : Team option
         SelectedTeamPerformance : TeamPerformance option
     }
-    
-type ShowChartsInput =
-    | CustomTeamsOnly of Team list
-    | BestTeamsOnly of PositiveNum
-    | CustomTeamsAndBestTeams of teams : Team list * bestTeams : PositiveNum
-    
-type ChartType =
-    | Answers of ShowChartsInput
-    | Places of ShowChartsInput
 
 let questionsRating gameDay =
     gameDay
@@ -115,31 +44,22 @@ let questionsRating gameDay =
 
 let minThresholdValue = questionsRating >> Seq.min
 let maxThresholdValue = questionsRating >> Seq.max
-
-let updateRating ratingType gameDay =
-    
-    let result = 
-        async {
-            return! SixtySecondsApi.gameDayRating (gameDay, ratingType)
-        } 
-        
-    result |> fromAsyncResult
     
 let defaultSheetOptions = 
-        {
-            FirstQuestion = Config.load FirstQuestion |> int
-            TeamAnswered = Config.load TeamAnswered
-            Answered = Config.load RightAnswers
-            Place = Config.load Place
-            Distance = Config.load Distance
-        }
+    {
+        FirstQuestion = Config.load FirstQuestion |> int
+        TeamAnswered = Config.load TeamAnswered
+        Answered = Config.load RightAnswers
+        Place = Config.load Place
+        Distance = Config.load Distance
+    }
         
 let init gameDay =
     {
         GameDay = gameDay
         RatingType = All
         QuestionsCount = gameDay.PackageSize |> PositiveNum.value
-        Rating = updateRating All gameDay 
+        Rating = [] 
         ChartTeamIds = ""
         BestTeams = ""
         ChartsErrorStatus = None
@@ -147,7 +67,7 @@ let init gameDay =
         SheetName = gameDay.Name.Value
         TeamId = ""
         SheetOptions = defaultSheetOptions
-        Status = None
+        Status = Ok ""
         
         SelectedTeam = None
         SelectedTeamPerformance = None
@@ -155,17 +75,19 @@ let init gameDay =
     
 
 type CmdMsg =
+    | UpdateRating of ratingType : RatingType * gameDay : GameDay
     | UpdateTeamPerformance of team : Team * gameDay : GameDay
-    | WriteToSpreadsheet of data : DataToWrite * Model  
-    
+    | WriteToSpreadsheet of data : DataToWrite * Model
+    | ShowChart of chartType : ChartType * gameDay : GameDay
 
 let updateBestTeams bestTeams model = {model with BestTeams = bestTeams}
+let withErrorStatus error model = {model with Status = error |> errorToString |> Error}
 let withClearChartErrorMessage model = { model with ChartsErrorStatus = None }
 
-let withClearStatus model = { model with Status = None }
+let withClearStatus model = { model with Status = Ok "" }
 
 let teamAnsweredColumnChanged column model = 
-        {model with SheetOptions = {model.SheetOptions with TeamAnswered = column}}
+    {model with SheetOptions = {model.SheetOptions with TeamAnswered = column}}
 
 let validateTeamId gameDay teamIdString =
     
@@ -180,16 +102,16 @@ let validateTeamId gameDay teamIdString =
     |> Result.bind findTeamById
 
 let rightAnswersColumnChanged column model = 
-        {model with SheetOptions = {model.SheetOptions with Answered = column}}
+    {model with SheetOptions = {model.SheetOptions with Answered = column}}
 
 let placesColumnChanged column model = 
-        {model with SheetOptions = {model.SheetOptions with Place = column}}
+    {model with SheetOptions = {model.SheetOptions with Place = column}}
 
 let distanceColumnChanged column model = 
-        {model with SheetOptions = {model.SheetOptions with Distance = column}}
+    {model with SheetOptions = {model.SheetOptions with Distance = column}}
 
 let firstQuestionRowChanged row model = 
-        {model with SheetOptions = {model.SheetOptions with Distance = row}}
+    {model with SheetOptions = {model.SheetOptions with Distance = row}}
     
 
 let writeToSpreadSheetButtonAvailable model = 
@@ -199,22 +121,21 @@ let writeToSpreadSheetButtonAvailable model =
         let! sheetName = model.SheetName |> NoEmptyString.ofString
         let! teamId = model.TeamId |> PositiveNum.ofString
         
-        let teamOption = 
-            model.GameDay |> GameDay.teams |> Seq.tryFind(fun team -> team.ID = teamId)
-        
-        return!
-            teamOption
-            |> Result.ofOption (sprintf "Team with ID %d not found" <| PositiveNum.value teamId)
+        return! 
+            model.GameDay
+            |> GameDay.teams
+            |> Seq.tryFind(fun team -> team.ID = teamId)
+            |> Result.ofOption (sprintf "Team with ID %d not found" teamId.Value)
             |> Result.map (DataToWrite.fromGameDay model.GameDay) 
     }
 
 let validateTeamIds (gameDay : GameDay) teamIds = 
         
     let findTeam teamId = 
-            gameDay
-            |> GameDay.teams
-            |> Seq.tryFind(fun t -> t.ID = teamId)
-            |> Result.ofOption "Team not found"
+        gameDay
+        |> GameDay.teams
+        |> Seq.tryFind(fun t -> t.ID = teamId)
+        |> Result.ofOption "Team not found"
     
     teamIds
     |> String.splitByChar [|';'; ' '|]
@@ -248,45 +169,8 @@ let showChartButtonAvailable model =
     }
         
     
-let showChart chartType gameDay =
-    
-    let teamsToShow input =
-        
-        match input with
-        | CustomTeamsOnly customTeams -> customTeams |> Seq.ofList
-        | BestTeamsOnly bestTeams -> gameDay |> Rating.ofGameDay |> Rating.leadingTeams bestTeams 
-        | CustomTeamsAndBestTeams (customTeams, bestTeams) ->  
-            
-            gameDay
-            |> Rating.ofGameDay
-            |> Rating.leadingTeams bestTeams 
-            |> Seq.append customTeams
-            |> Seq.distinct
-        
-    match chartType with
-    | Answers options ->
-        options
-        |> teamsToShow
-        |> Chart.showPointsQuestionByQuestion gameDay
-        
-    | Places options ->
-        options
-        |> teamsToShow
-        |> Chart.showPlacesQuestionByQuestion gameDay
-        
-        
-
-        
-let showErrorMessage status =
-
-    status
-    |> Option.map (fun res -> match res with Ok _ -> Visibility.Collapsed | Error _ -> Visibility.Visible)
-    |> Option.defaultValue Visibility.Collapsed
-
-let showSuccessMessage status =
-    status
-    |> Option.map (fun res -> match res with Ok _ -> Visibility.Visible | Error _ -> Visibility.Collapsed)
-    |> Option.defaultValue Visibility.Collapsed
+let showErrorMessage = function Ok _ -> Visibility.Collapsed | Error _ -> Visibility.Visible
+let showSuccessMessage = function Ok _ -> Visibility.Visible | Error _ -> Visibility.Collapsed
 
 let saveOptions spreadsheet (options : SheetOptions) =
     
@@ -307,11 +191,14 @@ let saveOptions spreadsheet (options : SheetOptions) =
 type Message =
     | CustomTeamsEntered of string
     | BestTeamsCountEntered of string
-    | ShowChart of ChartType  
+    | ShowChartRequested of ChartType
+    | ChartShown
     
     | RatingTypeChanged of bool 
     | QuestionThresholdChanged of int<RightAnswer>
     | UpdateRatingTable
+    | RatingUpdated of GameDayRating
+    | RatingUpdateFault of SixtySecondsError
     
     | TeamIdEntered of team : string
     | SpreadsheetIdEntered of url : string
@@ -323,7 +210,7 @@ type Message =
     | FirstQuestionColumnChanged of newValue : string
     
     | WriteToSpreadsheetRequested of data : DataToWrite
-    | DataWritten
+    | DataWritten of unit
     | DataNotWritten of SixtySecondsError 
     
     | TeamSelected of PositiveNum option
@@ -348,28 +235,15 @@ let update message model =
         {model with RatingType = rating}, []
     | QuestionThresholdChanged threshold -> { model with RatingType = Threshold threshold}, []
         
-    | UpdateRatingTable ->
+    | UpdateRatingTable -> model, [UpdateRating(model.RatingType, model.GameDay)]
         
-        let newQuestionsCount =
-            match model.RatingType with
-            | All -> model.GameDay.PackageSize.Value
-            | Threshold threshold -> 
-                model.GameDay.PackageSize
-                |> PositiveNum.createNaturalRange
-                |> Seq.filter (fun q ->
-                        let ra = q |> Question.rightAnswers model.GameDay
-                        ra <= threshold)
-                |> Seq.length
-        {model with Rating = updateRating model.RatingType model.GameDay; QuestionsCount = newQuestionsCount}, []
+    | RatingUpdated newRating -> {model with Rating = newRating}, []
+    | RatingUpdateFault error -> model |> withErrorStatus error, []
         
     | CustomTeamsEntered customTeams -> {model with ChartTeamIds = customTeams} |> withClearChartErrorMessage, []
     | BestTeamsCountEntered bestTeamsCount -> updateBestTeams bestTeamsCount model |> withClearChartErrorMessage, []
-    | ShowChart input -> 
-        
-        model.GameDay
-        |> showChart input
-
-        model, []
+    | ShowChartRequested input -> model, [ShowChart(input, model.GameDay)]
+    | ChartShown -> model, []
     | TeamSelected teamId ->
         
         let selectedTeam =
@@ -390,10 +264,7 @@ let update message model =
             
         { model with SelectedTeam = selectedTeam}, cmd
     | TeamPerformanceUpdated teamPerformance -> {model with SelectedTeamPerformance = Some teamPerformance}, []
-    | TeamPerformanceFailed error ->
-        let errorMessage = error |> errorToString
-        {model with Status = Some <| Error (errorMessage)}, [] 
-
+    | TeamPerformanceFailed error -> model |> withErrorStatus error, []
     | TeamIdEntered teamId -> {model with TeamId = teamId}, []
         
     | SpreadsheetIdEntered url -> 
@@ -417,14 +288,12 @@ let update message model =
     | FirstQuestionColumnChanged newValue -> {model with SheetOptions = {model.SheetOptions with FirstQuestion = int newValue}} ,[]
         
     | WriteToSpreadsheetRequested data -> model, [WriteToSpreadsheet(data, model)]
-    | DataWritten ->
+    | DataWritten _ ->
         
         saveOptions model.SpreadSheetId model.SheetOptions
-        {model with Status = "Data written" |> Ok |> Some}, []
+        {model with Status = "Data written" |> Ok}, []
         
-    | DataNotWritten e ->
-        
-        {model with Status = e |> errorToString |> Error |> Some}, []
+    | DataNotWritten e -> model |> withErrorStatus e, []
     
 let bindings() = 
     [
@@ -466,24 +335,23 @@ let bindings() =
         "TeamGameDayInfoVisibility" |> Binding.oneWay (fun m -> match m.SelectedTeam with Some _ -> Visibility.Visible | _ -> Visibility.Hidden)
         "TeamName" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map teamName |> Option.defaultValue "")
         "TeamIDChosen" |> Binding.oneWay (fun m -> m.SelectedTeam |> Option.map (fun team -> team.ID |> PositiveNum.value) |> Option.defaultValue 0)
-        "BestPlace" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.BestPlace) |> Option.defaultValue "")
-        "BestPlaceQuestion" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.BestPlaceAfterQuestion) |> Option.defaultValue 0)
-        "WorstPlace" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.WorstPlace) |> Option.defaultValue "")
-        "WorstPlaceQuestion" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.WorstPlaceAfterQuestion) |> Option.defaultValue 0)
-        "BestStrike" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.BestStrike) |> Option.defaultValue "")
-        "WorstStrike" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.WorstStrike) |> Option.defaultValue "")
+        "BestPlace" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.BestPlace.Place))
+        "BestPlaceQuestion" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.BestPlace.Question.Value))
+        "WorstPlace" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.WorstPlace))
+        "WorstPlaceQuestion" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.WorstPlace.Question.Value))
+        "BestStrike" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.BestStrike))
+        "WorstStrike" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.WorstStrike))
         "DifficultAnsweredQuestion" |> Binding.oneWay (
                                                           fun m -> m.SelectedTeamPerformance
                                                                    |> Option.map (fun tp -> tp.DifficultAnsweredQuestion)
-                                                                   |> Option.defaultValue 0
                                                       )
         "DifficultAnsweredQuestionCount" |> Binding.oneWay (
                                                           fun m -> m.SelectedTeamPerformance
                                                                    |> Option.map (fun tp -> tp.DifficultAnsweredQuestionCount)
                                                                    |> Option.defaultValue 0
                                                       )
-        "SimplestWrongAnsweredQuestion" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.SimplestWrongAnsweredQuestion) |> Option.defaultValue 0)
-        "SimplestWrongAnsweredQuestionCount" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.SimplestWrongAnsweredQuestionCount) |> Option.defaultValue 0)
+        "SimplestWrongAnsweredQuestion" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.SimplestWrongAnsweredQuestion.Value))
+        "SimplestWrongAnsweredQuestionCount" |> Binding.oneWay (fun m -> m.SelectedTeamPerformance |> Option.map (fun tp -> tp.SimplestWrongAnsweredQuestionCount))
         
         "ShowChartTitle" |> Binding.oneWay (fun m -> sprintf "Show chart for game %s" m.GameDay.Name.Value)
         "TeamIds" |> Binding.twoWayValidate(
@@ -502,13 +370,13 @@ let bindings() =
                     (fun model ->
                          model
                          |> showChartButtonAvailable
-                         |> Result.map (Places >> ShowChart)
+                         |> Result.map (Places >> ShowChartRequested)
                      )
         "ShowAnswersCharts" |> Binding.cmdIf
                     (fun model ->
                          model
                          |> showChartButtonAvailable
-                         |> Result.map (Answers >> ShowChart)
+                         |> Result.map (Answers >> ShowChartRequested)
                      )
         "ChartsErrorMessageVisibility" |> Binding.oneWay(fun model -> model.ChartsErrorStatus |> Option.isSome)
         "ChartsErrorMessage" |> Binding.oneWay(fun model -> model.ChartsErrorStatus |> Option.defaultValue "")
@@ -570,9 +438,9 @@ let bindings() =
         "ErrorMessageVisibility" |> Binding.oneWay (fun m -> m.Status |> showErrorMessage )
         "SuccessMessageVisibility" |> Binding.oneWay (fun m -> m.Status |> showSuccessMessage)
         "StatusMessage" |> Binding.oneWay(fun model -> 
-                                                model.Status 
-                                                |> Option.map(function Ok m -> m | Error e -> e) 
-                                                |> Option.defaultValue "")
+                                                match model.Status with 
+                                                | Ok m -> m
+                                                | Error e -> e) 
     ]
     
 let writeToSpreadsheet (data, model) =
@@ -580,26 +448,36 @@ let writeToSpreadsheet (data, model) =
     data
     |> SpreadsheetWriter.write model.SheetOptions model.SpreadSheetId model.SheetName
     
-let toCmd cmdMsg (wrap : Message -> 'a) =
+let toCmd cmdMsg =
+    
+    let ofSuccess okMessage errorMessage result =
+        match result with
+        | Ok v -> v |> okMessage
+        | Error e -> e |> errorMessage
+    
     match cmdMsg with
+    | UpdateRating(ratingType, gameDay) ->
+
+        let ofSuccess' = ofSuccess RatingUpdated RatingUpdateFault
+        let ofError exn = exn |> Bug |> RatingUpdateFault
+                
+        Cmd.OfAsync.either SixtySecondsApi.gameDayRating (gameDay, ratingType) ofSuccess' ofError
+    
     | UpdateTeamPerformance (team, gameDay) ->
         
-        let ofSuccess result =
-            match result with
-            | Ok performance -> performance |> TeamPerformanceUpdated |> wrap
-            | Error e -> e |> TeamPerformanceFailed |> wrap
-            
-        let ofError exn = exn |> Bug |> TeamPerformanceFailed |> wrap
+        let ofSuccess' = ofSuccess TeamPerformanceUpdated TeamPerformanceFailed
+        let ofError exn = exn |> Bug |> TeamPerformanceFailed
         
-        Elmish.Cmd.OfAsync.either teamPerformance (gameDay, team) ofSuccess ofError
+        Cmd.OfAsync.either SixtySecondsApi.teamPerformance (team, gameDay) ofSuccess' ofError
+    
+    | ShowChart(chart, gameDay) ->
+        
+        let ofSuccess _ = ChartShown
+        Cmd.OfAsync.perform SixtySecondsApi.showChart (chart, gameDay) ofSuccess
     
     | WriteToSpreadsheet(data, model) ->
         
-        let ofSuccess result =
-            match result with
-            | Ok _ -> DataWritten |> wrap
-            | Error e -> e |> Bug |> DataNotWritten |> wrap
+        let ofError = Bug >> DataNotWritten
+        let ofSuccess' = ofSuccess DataWritten ofError
         
-        let ofError exn = exn |> Bug |> DataNotWritten |> wrap
-        
-        Elmish.Cmd.OfAsync.either writeToSpreadsheet (data, model) ofSuccess ofError
+        Cmd.OfAsync.either writeToSpreadsheet (data, model) ofSuccess' ofError

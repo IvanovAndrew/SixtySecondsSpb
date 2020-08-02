@@ -6,7 +6,6 @@ open System.Windows
 open Elmish
 open Elmish.WPF
 
-open GameDayApp
 open SixtySeconds.Views
 open SixtySeconds.Common.CommonTypes
 
@@ -30,6 +29,7 @@ type Model =
 type CmdMsg =
     | MainPageCmd of UrlApp.CmdMsg
     | GameDayPageCmd of GameDayApp.CmdMsg
+    | SeasonRatingPageCmd of SeasonTableApp.CmdMsg
 
 let init() =
 
@@ -49,7 +49,7 @@ type NewPage =
 type Message =
     | UrlPageMessage of UrlApp.Message
     | GameDayPageMessage of GameDayApp.Message
-    | SeasonTableMessage of SeasonTableApp.Message
+    | SeasonRatingAppMessage of SeasonTableApp.Message
     
     | SwitchPage of NewPage
     
@@ -68,11 +68,15 @@ let update msg (model : Model) =
         let nextState, s = UrlApp.update msg model.FirstPageState
         {model with FirstPageState = nextState}, s |> List.map MainPageCmd
         
-    | SeasonTable, SeasonTableMessage msg ->
-        let nextState =
-            model.SeasonTableState
-            |> Option.map (SeasonTableApp.update msg) 
-        {model with SeasonTableState = nextState}, []
+    | SeasonTable, SeasonRatingAppMessage msg ->
+        let nextState, cmds =
+            match model.SeasonTableState with
+            | Some state -> 
+                let newState, newCommands = state |> SeasonTableApp.update msg
+                Some newState, newCommands
+            | None -> None, []
+        
+        {model with SeasonTableState = nextState}, cmds |> List.map SeasonRatingPageCmd
         
     | GameDay, GameDayPageMessage msg ->
         let nextState, cmds =
@@ -117,7 +121,7 @@ let bindings () : Binding<Model, Message> list =
         "SeasonTableWin" |> Binding.subModelWin(
             (fun m -> match m.Window, m.SeasonTableState with SeasonTable, Some st -> WindowState.Visible st | _ -> WindowState.Closed), 
             snd, 
-            SeasonTableMessage,
+            SeasonRatingAppMessage,
             SeasonTableApp.bindings,
             (fun () -> SixtySeconds.Views.SeasonTableWindow(Owner = Application.Current.MainWindow)),
             onCloseRequested = SwitchPage ToMainPage,
@@ -140,14 +144,26 @@ let private createWindow() =
     let window = SixtySeconds.Views.MainWindow()
     window
     
-let toSeasonPage st = st |> ToSeasonTablePage |> SwitchPage
-let toGamedayPage gd = gd |> ToGameDayPage |> SwitchPage
-    
 let toCmd = function
     | MainPageCmd cmd ->
-        UrlApp.toCmd cmd UrlPageMessage toSeasonPage toGamedayPage
+        
+        let wrap = function
+            | UrlApp.OnLoadSeasonTableSuccess st -> st |> ToSeasonTablePage |> SwitchPage
+            | UrlApp.OnGameDayLoadedSuccess gd -> gd |> ToGameDayPage |> SwitchPage
+            | x -> UrlPageMessage x
+        
+        cmd
+        |> UrlApp.toCmd 
+        |> Cmd.map wrap
+        
     | GameDayPageCmd cmd ->
-        GameDayApp.toCmd cmd GameDayPageMessage
+        cmd
+        |> GameDayApp.toCmd
+        |> Cmd.map GameDayPageMessage
+    | SeasonRatingPageCmd cmd ->
+        cmd
+        |> SeasonTableApp.toCmd
+        |> Cmd.map SeasonRatingAppMessage
         
     
 

@@ -165,6 +165,20 @@ module Domain =
             Table : SeasonRating
             GamesCount : PositiveNum
         }
+        
+    type PlaceInfo = {Place : Place; Question : QuestionNumber}
+        
+    type TeamPerformance =
+        {
+            BestPlace : PlaceInfo
+            WorstPlace : PlaceInfo
+            BestStrike : StrikeInfo
+            WorstStrike : StrikeInfo
+            DifficultAnsweredQuestion : QuestionNumber
+            DifficultAnsweredQuestionCount : int
+            SimplestWrongAnsweredQuestion : QuestionNumber
+            SimplestWrongAnsweredQuestionCount : int
+        }
 
     type RoundOf12MatchUp = Team * Team
 
@@ -180,3 +194,12 @@ module Domain =
 
     type SemifinalWinner = SemifinalMatchUp
     type Final = SemifinalMatchUp * SemifinalMatchUp
+    
+    type ShowChartsInput =
+    | CustomTeamsOnly of Team list
+    | BestTeamsOnly of PositiveNum
+    | CustomTeamsAndBestTeams of teams : Team list * bestTeams : PositiveNum
+    
+    type ChartType =
+        | Answers of ShowChartsInput
+        | Places of ShowChartsInput

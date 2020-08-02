@@ -37,22 +37,12 @@ module SixtySecondsWorkflow =
         
     let teamBestPlace (team, gameDay) =
         simpleProgram{
-            return team |> Team.bestPlace gameDay |> fst
-        }
-        
-    let teamBestQuestion (team, gameDay) =
-        simpleProgram{
-            return team |> Team.bestPlace gameDay |> snd |> PositiveNum.value
+            return team |> Team.bestPlace gameDay
         }
         
     let teamWorstPlace (team, gameDay) =
         simpleProgram{
-            return team |> Team.worstPlace gameDay |> fst
-        }
-        
-    let teamWorstQuestion (team, gameDay) =
-        simpleProgram{
-            return team |> Team.worstPlace gameDay |> snd |> PositiveNum.value
+            return team |> Team.worstPlace gameDay
         }
         
     let teamBestStrike (team, gameDay) =
@@ -67,7 +57,7 @@ module SixtySecondsWorkflow =
         
     let teamDifficultAnsweredQuestion (team, gameDay) =
         simpleProgram{
-            return team |> Team.difficultAnswered gameDay |> fst |> PositiveNum.value
+            return team |> Team.difficultAnswered gameDay |> fst
         }
         
     let teamDifficultAnsweredQuestionCount (team, gameDay) =
@@ -77,10 +67,60 @@ module SixtySecondsWorkflow =
         
     let teamSimpleWrongAnsweredQuestion (team, gameDay) =
         simpleProgram{
-            return team |> Team.simplestWrongAnswered gameDay |> fst |> PositiveNum.value
+            return team |> Team.simplestWrongAnswered gameDay |> fst
         }
         
     let teamSimpleWrongAnsweredQuestionCount (team, gameDay) =
         simpleProgram{
             return team |> Team.simplestWrongAnswered gameDay |> snd |> Converter.toInt
+        }
+        
+    let teamPerformance (team, gameDay) =
+        
+        simpleProgram {
+            let! bestPlace = teamBestPlace (team, gameDay)
+            let! worstPlace = teamWorstPlace (team, gameDay)
+            let! bestStrike = teamBestStrike (team, gameDay)
+            let! worstStrike = teamWorstStrike (team, gameDay)
+            let! difficultAnsweredQuestion = teamDifficultAnsweredQuestion (team, gameDay)
+            let! difficultAnsweredQuestionCount = teamDifficultAnsweredQuestionCount (team, gameDay)
+            let! simplestWrongAnsweredQuestion = teamSimpleWrongAnsweredQuestion (team, gameDay)
+            let! simplestWrongAnsweredQuestionCount = teamSimpleWrongAnsweredQuestionCount (team, gameDay)
+        
+            return {
+                        BestPlace = bestPlace 
+                        WorstPlace = worstPlace
+                        BestStrike = bestStrike
+                        WorstStrike = worstStrike
+                        DifficultAnsweredQuestion = difficultAnsweredQuestion
+                        DifficultAnsweredQuestionCount = difficultAnsweredQuestionCount
+                        SimplestWrongAnsweredQuestion = simplestWrongAnsweredQuestion
+                        SimplestWrongAnsweredQuestionCount = simplestWrongAnsweredQuestionCount
+                    }
+            }
+    let showChart (chartType, gameDay) =
+        program{
+            let teamsToShow input =
+            
+            match input with
+            | CustomTeamsOnly customTeams -> customTeams |> Seq.ofList
+            | BestTeamsOnly bestTeams -> gameDay |> Rating.ofGameDay |> Rating.leadingTeams bestTeams 
+            | CustomTeamsAndBestTeams (customTeams, bestTeams) ->  
+                
+                gameDay
+                |> Rating.ofGameDay
+                |> Rating.leadingTeams bestTeams 
+                |> Seq.append customTeams
+                |> Seq.distinct
+            
+        match chartType with
+        | Answers options ->
+            options
+            |> teamsToShow
+            |> Chart.showPointsQuestionByQuestion gameDay
+            
+        | Places options ->
+            options
+            |> teamsToShow
+            |> Chart.showPlacesQuestionByQuestion gameDay
         }

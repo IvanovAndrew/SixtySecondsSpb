@@ -40,6 +40,9 @@ let initModel (seasonTable : SeasonTable) =
         FilteredSeasonTable = Seq.empty
         Playoff = None
     }
+    
+type CmdMsg =
+    | CopyToClipboard of TeamSeasonRating seq 
 
 let gamesToCountChanged gamesToCount model = 
     match gamesToCount |> PositiveNum.ofInt with
@@ -83,27 +86,29 @@ let showPlayoff rating model =
         
     { model with Playoff = Some playoffString }
     
-let copyToClipboard rating model =
+let asyncCopyToClipboard rating =
     
-    rating
-    |> Seq.map (fun row -> sprintf "%d. %s %.2f" row.Place row.Name <| Converter.toDecimal row.Rating)
-    |> Seq.reduce (fun acc string -> sprintf "%s%s%s" acc Environment.NewLine string)
-    |> Clipboard.SetText
-    
-    model
+    async {
+        rating
+        |> Seq.map (fun row -> sprintf "%d. %s %.2f" row.Place row.Name <| Converter.toDecimal row.Rating)
+        |> Seq.reduce (fun acc string -> sprintf "%s%s%s" acc Environment.NewLine string)
+        |> Clipboard.SetText
+    }
 
 type Message = 
     | GamesToCountChanged of gamesToCount : int
     | ShowSeasonTable of count : PositiveNum
     | ShowPlayoff of TeamSeasonRating seq
-    | CopyToClipboard of TeamSeasonRating seq
+    | CopyToClipboardRequested of TeamSeasonRating seq
+    | CopiedToClipboard
 
 let update message model = 
     match message with
-    | GamesToCountChanged gamesToCount -> gamesToCountChanged gamesToCount model
-    | ShowSeasonTable count  -> showTable count model
-    | ShowPlayoff rating -> showPlayoff rating model
-    | CopyToClipboard rating -> copyToClipboard rating model
+    | GamesToCountChanged gamesToCount -> gamesToCountChanged gamesToCount model, []
+    | ShowSeasonTable count  -> showTable count model, []
+    | ShowPlayoff rating -> showPlayoff rating model, []
+    | CopyToClipboardRequested rating -> model, [CopyToClipboard rating]
+    | CopiedToClipboard -> model, []
 
 let bindings() = 
     [
@@ -128,7 +133,7 @@ let bindings() =
                 fun model ->
                         model.FilteredSeasonTable
                         |> (fun v -> if Seq.isEmpty v then Error() else Ok v)
-                        |> Result.map CopyToClipboard
+                        |> Result.map CopyToClipboardRequested
                     )
         
         "Playoff" |> Binding.oneWay (fun model -> model.Playoff |> Option.defaultValue "")
@@ -142,3 +147,12 @@ let bindings() =
                 "Rating" |> Binding.oneWay (fun (_, item) -> item.Rating)
                 ]))
     ]
+    
+let toCmd cmdMsg =
+    
+    match cmdMsg with
+    | CopyToClipboard rating ->
+        
+        let ofSuccess _ = CopiedToClipboard 
+        
+        Elmish.Cmd.OfAsync.perform asyncCopyToClipboard rating ofSuccess
