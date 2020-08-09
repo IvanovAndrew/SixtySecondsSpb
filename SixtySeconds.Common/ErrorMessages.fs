@@ -6,7 +6,6 @@ let errorToString = function
     | ParsingError error ->
         match error with 
         | MissingSheetName -> "Missing sheet name"
-        | MissingTournamentName -> "Missing tournament name"
         | MissingGameName -> "Missing game name"
         | MissingAnswersCount -> "Missing answers count"
         | AnswersParsingError err -> sprintf "Can not answers. %s" err
