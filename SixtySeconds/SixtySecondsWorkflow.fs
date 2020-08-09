@@ -103,16 +103,16 @@ module SixtySecondsWorkflow =
         program{
             let teamsToShow input =
             
-            match input with
-            | CustomTeamsOnly customTeams -> customTeams |> Seq.ofList
-            | BestTeamsOnly bestTeams -> gameDay |> Rating.ofGameDay |> Rating.leadingTeams bestTeams 
-            | CustomTeamsAndBestTeams (customTeams, bestTeams) ->  
-                
-                gameDay
-                |> Rating.ofGameDay
-                |> Rating.leadingTeams bestTeams 
-                |> Seq.append customTeams
-                |> Seq.distinct
+                match input with
+                | CustomTeamsOnly customTeams -> customTeams |> Seq.ofList
+                | BestTeamsOnly bestTeams -> gameDay |> Rating.ofGameDay |> Rating.leadingTeams bestTeams 
+                | CustomTeamsAndBestTeams (customTeams, bestTeams) ->  
+                    
+                    gameDay
+                    |> Rating.ofGameDay
+                    |> Rating.leadingTeams bestTeams 
+                    |> Seq.append customTeams
+                    |> Seq.distinct
             
         match chartType with
         | Answers options ->
