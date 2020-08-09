@@ -21,7 +21,7 @@ let showGraphic data (teams : Team seq) gameDay vAxis =
         {
             HorizonalAxis = {Direction = Direction.Forward; Label = horizontalAxisLabel; Maximum = hMax}
             VerticalAxis = vAxis
-            Title = sprintf "%s %s" gameDay.Tournament.Value gameDay.Name.Value
+            Title = sprintf "%s %s %s" gameDay.Tournament.City.Value gameDay.Tournament.League.Value gameDay.Name.Value
         }
 
     GoogleChart.showData graphicData labels <| ChartType.Line options

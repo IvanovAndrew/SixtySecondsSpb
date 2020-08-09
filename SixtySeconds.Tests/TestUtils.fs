@@ -153,7 +153,12 @@ module FsCheckUtils =
                     |> Gen.sample teamsCount |> List.ofArray
                 
                 return {
-                    Tournament = toNoEmptyString "Generated tournament" 
+                    Tournament =
+                        {
+                            City = "Unit City" |> NoEmptyString.ofConstString
+                            League = "Test league" |> NoEmptyString.ofConstString
+                            Season = "Pilot season" |> NoEmptyString.ofConstString
+                        }
                     Name = System.DateTime.Now.ToString() |> toNoEmptyString
                     Answers =
                         allAnswers

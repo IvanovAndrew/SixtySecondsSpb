@@ -2,6 +2,7 @@
 
 open System
 open System.Text
+open System.Web
 
 let (|SeqEmpty|SeqOneItem|SeqMore|) (xs: 'a seq) = //'
     if Seq.isEmpty xs then SeqEmpty
@@ -86,6 +87,9 @@ module String  =
     let isEmpty (s : string) =  System.String.IsNullOrEmpty s || System.String.IsNullOrWhiteSpace s
     
     let splitByChar sep (str : string) = str.Split(sep)
+    let splitByCharWithCount (sep : char array) (count : int) (str : string) =
+        str.Split(sep, count, StringSplitOptions.RemoveEmptyEntries)
+    
     let splitByString (sep : string array) (str : string) = str.Split(sep, StringSplitOptions.RemoveEmptyEntries)
 
     let length (str : string) = str.Length
@@ -93,6 +97,7 @@ module String  =
     let replace (oldValue : string) newValue (s : string) = s.Replace(oldValue, newValue)
 
     let containsSubstring (substring : string) (string : string) = string.Contains(substring)
+    
 
     let startsWith (subString : string) (string : string) = string.StartsWith(subString)
     
@@ -107,6 +112,13 @@ type NoEmptyString = private NoEmptyString of string
             if String.isEmpty str
             then Error "String must not be empty!" 
             else str |> NoEmptyString |> Ok
+            
+        static member ofConstString str =
+            match str |> NoEmptyString.ofString with
+            | Ok res -> res
+            | Error e -> failwithf "%s is empty" str
+            
+            
 
         member this.Value = match this with NoEmptyString s -> s
 
@@ -155,7 +167,16 @@ let (|Sec60Season|Sec60Game|Google|Unknown|) site =
         
     match site |> Url.value with
     | x when x |> String.containsSubstring "https://60sec.online/season/" -> Sec60Season  
-    | x when x |> String.containsSubstring "https://60sec.online/game/" -> Sec60Game
+    | x when x |> String.containsSubstring "https://60sec.online/game/" ->
+        
+        let gameId =
+            x
+            |> System.Uri
+            |> (fun x -> x.Segments)
+            |> Array.last
+            |> String.replace "/" ""
+            |> int
+        Sec60Game gameId
     | x when x |> String.containsSubstring "https://docs.google.com/spreadsheets/" -> Google
     | _ -> Unknown
     

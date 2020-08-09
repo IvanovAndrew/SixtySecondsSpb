@@ -7,6 +7,7 @@ let errorToString = function
         match error with 
         | MissingSheetName -> "Missing sheet name"
         | MissingTournamentName -> "Missing tournament name"
+        | MissingGameName -> "Missing game name"
         | MissingAnswersCount -> "Missing answers count"
         | AnswersParsingError err -> sprintf "Can not answers. %s" err
         | TeamParsingError err -> sprintf "Can not parse team. %s" err
@@ -14,6 +15,7 @@ let errorToString = function
         | SeasonHasNotStarted -> "Season hasn't started yet"
         | DuplicatedTeam team -> sprintf "Team %s is already added " team
         | UnexpectedSite url -> sprintf "Wrong site type %s" url
+        | UnexpectedJson str -> sprintf "Unexpected json %s" str
     | WebRequestError error ->
         match error with
         | PageNotFound url -> sprintf "Page %s not found" url

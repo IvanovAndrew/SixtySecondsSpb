@@ -1,5 +1,6 @@
 ﻿namespace GameDay.Tests
 
+open SixtySeconds.Common.CommonTypes
 open SixtySeconds.Domain
 open SixtySeconds.Actions
 
@@ -16,7 +17,12 @@ module GameDayUtils =
     
     let createGameDay questionsCount = 
             {
-                Tournament = Utils.toNoEmptyString "Unit test tournament" 
+                Tournament =
+                    {
+                        City = "Unit" |> NoEmptyString.ofConstString
+                        League = "Test" |> NoEmptyString.ofConstString
+                        Season = "Temp season" |> NoEmptyString.ofConstString
+                    }
                 Name = Utils.toNoEmptyString <| DateTime.Now.ToString()
                 Answers = Map.empty
                 PackageSize = questionsCount |> Utils.toPositiveNum

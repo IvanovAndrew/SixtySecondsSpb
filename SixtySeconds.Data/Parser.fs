@@ -1,12 +1,34 @@
 ﻿module Parser
 
+open System
 open FSharp.Data
+open FSharp.Data
+open FSharp.Data
+open FSharp.Data.JsonExtensions
 
+open FSharp.Data
 open SixtySeconds.Domain
 open SixtySeconds.Actions
 
 open SixtySeconds.Common.Errors
 open SixtySeconds.Common.CommonTypes
+
+let asyncLoadString url =
+    async {
+        let urlString = Url.value url
+        let! response = Http.AsyncRequest(urlString, silentHttpErrors = true)
+        
+        let result = 
+            if response.StatusCode <> 200 then urlString |> pageNotFound 
+            else
+                match response.Body with 
+                | HttpResponseBody.Text text -> 
+                    text
+                    |> Ok
+                | _ -> unexpectedResponse() 
+
+        return result
+    }
 
 let asyncLoadDocument url = 
     
@@ -49,14 +71,18 @@ module HtmlNode =
     let innerText (node : HtmlNode) = node.InnerText()
     let elements (node : HtmlNode) = node.Elements()
     let firstElement (node : HtmlNode) = node |> elements |> Seq.head
+    let elementWithId id (node : HtmlNode) =
+        node
+        |> elements
+        |> Seq.find (fun node -> node |> HtmlNode.hasId id)
     let descendants (node : HtmlNode) = node.Descendants()
     let attributes (node : HtmlNode) = node.Attributes()
     let attribute name (node : HtmlNode) = node.Attribute(name)
     let hasAttribute attribute value (node : HtmlNode) = node.HasAttribute(attribute, value)
     
-module HtmlDocument =
-    
-    let elements (document : HtmlDocument) = document.Elements()
+//module HtmlDocument =
+//    
+//    let elements (document : HtmlDocument) = document |> document.Elements()
 
 module Attribute = 
     
@@ -119,7 +145,7 @@ let private findSheetNode document sheetName =
     |> getSheetId document
     |> Result.map findNodeById
 
-let parseTitle document =
+let private parseTitle document =
         
     document
     |> HtmlDocument.elements
@@ -127,8 +153,27 @@ let parseTitle document =
     |> HtmlNode.descendants
     |> Seq.find (fun node -> node.Name() = "title")
     |> HtmlNode.innerText
+    
+let private createGameDay gameDay parse teamsToParse = 
+    
+    let updateGameDay gameDaySoFar team answers =
+        let addTeam gameDay =
+            gameDay
+            |> GameDay.withTeam team answers
+            |> Result.mapError (fun _ -> team.Name.Value |> DuplicatedTeam)
+        
+        gameDaySoFar
+        |> Result.bind addTeam
+    
+    teamsToParse
+    |> Seq.map parse
+    |> Result.combine 
+    |> Result.bind (fun seq -> seq |> Seq.fold (fun acc (team, answers) -> updateGameDay acc team answers) gameDay)
+    
+    
+    
 
-let parse (gameName : GameName) (document : HtmlDocument) = 
+let parseGameday (gameName : GameName) (document : HtmlDocument) = 
     
     let number = "№"
     let name = ""
@@ -137,12 +182,29 @@ let parse (gameName : GameName) (document : HtmlDocument) =
     let firstAnswer = "1"
     let rightAnswer = "1"
 
-    let getTournamentName() =
+    let parseTournamentInfo() =
         
-        parseTitle document
-        |> String.replace "Таблица " ""
-        |> NoEmptyString.ofString
-        |> expectMissingTournamentName
+        let titleParts = 
+            document
+            |> parseTitle
+            |> String.replace "Таблица " ""
+            |> String.splitByCharWithCount [| ' ' |] 2
+        
+        match titleParts with
+        | [| season; league |] ->
+            
+            result {
+                let! leagueName = league |> NoEmptyString.ofString |> expectMissingLeagueName
+                let! seasonName = season |> NoEmptyString.ofString |> expectMissingSeasonName
+                return
+                    {
+                        City = "Санкт-Петербург" |> NoEmptyString.ofConstString
+                        League = leagueName
+                        Season = seasonName
+                    }
+            }
+        | [| _ |] -> Error MissingLeagueName
+        | _ -> Error MissingSeasonName
 
     let parserOptions (sheetNode : HtmlNode) = 
         
@@ -151,8 +213,6 @@ let parse (gameName : GameName) (document : HtmlDocument) =
             sheetNode
             |> HtmlNode.firstElement
             |> HtmlNode.elements
-
-        
 
         let answerColumns = 
             optionsLineNode
@@ -206,32 +266,20 @@ let parse (gameName : GameName) (document : HtmlDocument) =
             |> Seq.filter filterBySheetId
             |> Seq.exceptLast
         
-        let createGameDay gameDaySoFar team answers = 
-            
-            let addTeam gameDay =
-                gameDay
-                |> GameDay.withTeam team answers
-                |> Result.mapError (fun _ -> team.Name.Value |> DuplicatedTeam)
-            
-            gameDaySoFar
-            |> Result.bind addTeam
-
         teamsLines
-        |> Seq.map parse
-        |> Result.combine 
-        |> Result.bind (fun seq -> seq |> Seq.fold (fun acc (team, answers) -> createGameDay acc team answers) gameDay)
+        |> createGameDay gameDay parse
     
     let gameDay = 
 
         result{
             let! sheetNode = findSheetNode document gameName
             let! sheetId = getSheetId document gameName
-            let! tournament = getTournamentName()
-            
+            let! tournament = parseTournamentInfo()
 
             let options = parserOptions sheetNode
 
             let emptyGameDay =
+                
                 options.AnswersColumns
                 |> List.length
                 |> PositiveNum.ofInt
@@ -242,8 +290,50 @@ let parse (gameName : GameName) (document : HtmlDocument) =
         }
 
     gameDay
-
-
+    
+let parse60SecondGameDay tournamentInfo gameName json =
+    
+    let parseTeam teamJson =
+        result {
+            let teamId = teamJson?team_id.AsInteger()
+            let teamName = teamJson?title.AsString()
+            let! team = createTeam teamId teamName
+            
+            let answers =
+                teamJson?newmask.AsArray()
+                |> Array.map (fun num -> num.AsDecimal() |> Answer.ofDecimal)
+                |> Answers.ofSeq
+            
+            return team, answers
+        } |> expectTeamParsingError
+        
+    match json with
+    | JsonValue.Record props ->
+        let results = props |> Array.find (fun p -> fst p = "results") |> snd
+        let teamResults = results.AsString() |> JsonValue.Parse
+    
+        let emptyGameday =
+            result {
+                // TODO fix it
+                let! packageSize = PositiveNum.ofInt 36
+                return
+                    {
+                        Tournament = tournamentInfo
+                        Name = gameName
+                        Answers = Map.empty
+                        PackageSize = packageSize 
+                    }
+            }
+            |> expectMissingAnswers
+            
+        
+        seq {
+            for jsonTeam in teamResults do
+                yield jsonTeam 
+            }
+        |> createGameDay emptyGameday parseTeam 
+    | x -> x.AsString()  |> UnexpectedJson |> Error 
+        
 let parseTotalFromGoogleSpreadsheet document = 
     
     let parseLine options node = 
@@ -286,9 +376,8 @@ let parseTotalFromGoogleSpreadsheet document =
             
             let! sheetNode =
                 "60 сек"
-                |> NoEmptyString.ofString
-                |> expectMissingTournamentName
-                |> Result.bind (findSheetNode document)
+                |> NoEmptyString.ofConstString
+                |> findSheetNode document
                  
                 
             let parserOptions = 
@@ -329,16 +418,11 @@ let parseTotalFromGoogleSpreadsheet document =
 let parseTotalFrom60SecSite document =
     
     let tableNodes =
-        let body = 
-            match document |> HtmlDocument.tryGetBody with
-            | Some body -> body
-            | None -> failwith "Missing body"
-            
-        body
+        document
+        |> HtmlDocument.body
         |> HtmlNode.descendants
         |> Seq.filter (HtmlNode.hasAttribute "id" "rate_table")
-        // first one is about Высшая лига, the second one is about Первая лига
-        |> Seq.tail
+        // first one is about Первая лига, the second one is about Высшая лига 
         |> Seq.head
         
     let options = 

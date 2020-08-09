@@ -25,6 +25,7 @@ module Domain =
         | Wrong
         
         with
+            static member ofDecimal num = if num > 0m then Right else Wrong
             static member ofBool isRight = if isRight then Right else Wrong
             static member isRight answer = answer = Answer.Right
             static member toRightAnswer answer = if Answer.isRight answer then 1<RightAnswer> else 0<RightAnswer>
@@ -138,12 +139,21 @@ module Domain =
                 
             static member toList (Answers answers) = answers
             
-    type TournamentName = NoEmptyString
+    type CityName = NoEmptyString
+    type LeagueName = NoEmptyString
     type GameName = NoEmptyString
+    type SeasonName = NoEmptyString
+    
+    type Tournament =
+        {
+            City : CityName
+            League : LeagueName
+            Season : SeasonName
+        }
 
     type GameDay = 
         {
-            Tournament : TournamentName
+            Tournament : Tournament
             Name : GameName
             Answers : Map<Team, Answers>
             PackageSize : PositiveNum
@@ -170,6 +180,7 @@ module Domain =
         
     type TeamPerformance =
         {
+            Team : Team
             BestPlace : PlaceInfo
             WorstPlace : PlaceInfo
             BestStrike : StrikeInfo

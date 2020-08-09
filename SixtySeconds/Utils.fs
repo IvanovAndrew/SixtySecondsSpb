@@ -19,8 +19,3 @@ let (++) (left : System.Text.StringBuilder) (right : 't) : System.Text.StringBui
 
 let (+=) (left : System.Text.StringBuilder) (right : 't) : unit =
     left ++ right |> ignore
-    
-    
-
-    
-

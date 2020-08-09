@@ -47,7 +47,10 @@ module UrlApp =
         | OnGameDayLoadedError of SixtySecondsError
         
     let validateGameDay = NoEmptyString.ofString 
-    let validateUrl = Url.create
+    let validateUrl site =
+        site
+        |> Url.create
+        |> Result.bind (function Unknown -> Error "Unexpected site" | x -> Ok x)
     
     let private withError error model =
         {model with ErrorMessage = error |> errorToString |> Some}
@@ -110,7 +113,7 @@ module UrlApp =
             "Gameday60SecButtonVisibility" |> Binding.oneWay
                                         (fun m -> 
                                             match validateUrl m.TableUrl with
-                                            | Ok url -> match url with Sec60Game -> Visibility.Visible | _ -> Visibility.Collapsed
+                                            | Ok url -> match url with Sec60Game _ -> Visibility.Visible | _ -> Visibility.Collapsed
                                             | Error e -> Visibility.Collapsed
                                         )
             

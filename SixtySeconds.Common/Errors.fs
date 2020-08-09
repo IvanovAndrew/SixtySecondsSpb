@@ -4,7 +4,10 @@ module Errors =
     
     type ParsingError =
     | MissingSheetName
-    | MissingTournamentName
+    | MissingCityName
+    | MissingLeagueName
+    | MissingSeasonName
+    | MissingGameName
     | MissingAnswersCount
     | TeamParsingError of string
     | AnswersParsingError of string
@@ -12,6 +15,7 @@ module Errors =
     | DuplicatedTeam of string
     | SeasonHasNotStarted
     | UnexpectedSite of string
+    | UnexpectedJson of string
     
     
     type WebRequestError = 
@@ -33,7 +37,10 @@ module Errors =
     let expectParsingError result = result |> Result.mapError ParsingError
     let expectTeamParsingError result = result |> Result.mapError TeamParsingError
     let expectDuplicatedTeam result = result |> Result.mapError DuplicatedTeam
-    let expectMissingTournamentName result = result |> Result.mapError (fun _ -> MissingTournamentName)
+    let expectMissingCityName result = result |> Result.mapError (fun _ -> MissingLeagueName)
+    let expectMissingLeagueName result = result |> Result.mapError (fun _ -> MissingLeagueName)
+    let expectMissingSeasonName result = result |> Result.mapError (fun _ -> MissingSeasonName)
+    let expectMissingGameName result = result |> Result.mapError (fun _ -> MissingGameName)
     let expectSeasonHasNotStartedError result = result |> Result.mapError (fun _ -> SeasonHasNotStarted)
     let expectMissingAnswers result = result |> Result.mapError (fun _ -> MissingAnswersCount)
     

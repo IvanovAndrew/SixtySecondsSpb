@@ -172,7 +172,7 @@ let main argv =
                 return
                     document
                     |> expectWebRequestError
-                    |> Result.bind (fun d -> d |> Parser.parse sheet |> expectParsingError)
+                    |> Result.bind (fun d -> d |> Parser.parseGameday sheet |> expectParsingError)
                     |> Result.map (processGameDay options)
             } |> Async.RunSynchronously
         

@@ -88,6 +88,7 @@ module SixtySecondsWorkflow =
             let! simplestWrongAnsweredQuestionCount = teamSimpleWrongAnsweredQuestionCount (team, gameDay)
         
             return {
+                        Team = team
                         BestPlace = bestPlace 
                         WorstPlace = worstPlace
                         BestStrike = bestStrike
