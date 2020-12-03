@@ -1,4 +1,4 @@
-﻿module SixtySeconds.Common.CommonTypes
+module SixtySeconds.Common.CommonTypes
 
 open System
 open System.Text
@@ -128,6 +128,11 @@ type PositiveNum = private PositiveNum of int
         static member ofInt i = 
             if i <= 0 then Error "Number must be positive!"
             else Ok <| PositiveNum i
+            
+        static member ofConst i =
+            match PositiveNum.ofInt i with
+            | Ok v -> v
+            | Error e -> failwith e
 
         static member ofString (str : string) = 
             

@@ -1,4 +1,4 @@
-﻿namespace SixtySeconds
+namespace SixtySeconds
 
 module Domain = 
 
@@ -205,12 +205,3 @@ module Domain =
 
     type SemifinalWinner = SemifinalMatchUp
     type Final = SemifinalMatchUp * SemifinalMatchUp
-    
-    type ShowChartsInput =
-    | CustomTeamsOnly of Team list
-    | BestTeamsOnly of PositiveNum
-    | CustomTeamsAndBestTeams of teams : Team list * bestTeams : PositiveNum
-    
-    type ChartType =
-        | Answers of ShowChartsInput
-        | Places of ShowChartsInput

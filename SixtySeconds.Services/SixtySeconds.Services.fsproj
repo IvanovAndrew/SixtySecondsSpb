@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Include="GoogleChartService.fs" />
+      <Compile Include="SpreadsheetService.fs" />
+      <Compile Include="SpreadsheetWriter.fs" />
+      <Compile Include="Chart.fs" />
+      <Compile Include="Actions.fs" />
+      <None Include="credentials.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <Content Include="Google.DataTable.Net.Wrapper.XML" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\SAFE-StackWebAppv2.2.0\src\Shared\Shared.fsproj" />
+      <ProjectReference Include="..\SixtySeconds.Common\SixtySeconds.Common.fsproj" />
+      <ProjectReference Include="..\SixtySeconds\SixtySeconds.fsproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Google.Apis.Sheets.v4" Version="1.49.0.2146" />
+      <PackageReference Include="XPlot.GoogleCharts" Version="3.0.1" />
+    </ItemGroup>
+
+</Project>

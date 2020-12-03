@@ -1,4 +1,4 @@
-﻿module Parser
+module Parser
 
 open System
 open FSharp.Data
@@ -41,10 +41,13 @@ let asyncLoadDocument url =
             else
                 match response.Body with 
                 | HttpResponseBody.Text text -> 
-                    text
-                    |> String.replace "<style>@import url(https://fonts.googleapis.com/css?kit=o--8Et3j0xElSo4Jk-6CSN_pgL91BiSHK8etQbSopkk);</style>" "" 
-                    |> HtmlDocument.Parse 
-                    |> Ok
+                    
+                    if text.Contains("Ошибка \"404\"") then urlString |> pageNotFound
+                    else 
+                        text
+                        |> String.replace "<style>@import url(https://fonts.googleapis.com/css?kit=o--8Et3j0xElSo4Jk-6CSN_pgL91BiSHK8etQbSopkk);</style>" "" 
+                        |> HtmlDocument.Parse 
+                        |> Ok
                 | _ -> unexpectedResponse() 
 
         return result

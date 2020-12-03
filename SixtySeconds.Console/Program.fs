@@ -1,15 +1,18 @@
 ﻿open Chart
 open Config
-open SpreadsheetWriter
+
 
 open SixtySeconds.Common.CommonTypes
 
 open SixtySeconds.Common.Errors
 open SixtySeconds.Common.ErrorMessages
 
+open SixtySeconds.Services
+
 open SixtySeconds.Domain
 open SixtySeconds.Actions
 open SixtySeconds.SixtySecondsProgramBuilder
+open Shared.Models
 
 
 type WriteMode = 
@@ -88,21 +91,23 @@ let processGameDay options gameDay =
             
             let google = Config.GetSample().Google
             
-            let spreadsheetId = google.SpreadsheetId
-
             let options = 
                 
                 {
-                    FirstQuestion = google.SheetRows.FirstQuestion
+                    Id = google.SpreadsheetId
+                    SheetName = sheetId
+                    ColumnOptions = {
 
-                    TeamAnswered = google.SheetColumns.TeamAnswered
-                    Answered = google.SheetColumns.Answered
-                    Place = google.SheetColumns.Place
-                    Distance = google.SheetColumns.Distance
+                        FirstQuestion = google.SheetRows.FirstQuestion
+                        TeamAnswered = google.SheetColumns.TeamAnswered
+                        Answered = google.SheetColumns.Answered
+                        Place = google.SheetColumns.Place
+                        Distance = google.SheetColumns.Distance
+                    }                    
                 }
 
             data
-            |> SpreadsheetWriter.write options spreadsheetId sheetId 
+            |> SpreadsheetWriter.write options   
             |> Async.RunSynchronously
             |> ignore
         | _ -> ()
@@ -121,7 +126,7 @@ let processGameDay options gameDay =
                 showPointsQuestionByQuestion gameDay teams
 
         options.TeamChart
-        |> Option.iter showTeamChart
+        |> Option.iter (fun c -> c |> showTeamChart |> Async.RunSynchronously)
             
     | None -> failwithf "Team with Id %d not found" options.TeamId.Value
 
@@ -200,7 +205,7 @@ let main argv =
                     document
                     |> expectWebRequestError
                     |> Result.bind (fun v -> v |> Parser.parseTotalFromGoogleSpreadsheet |> expectParsingError)  
-                    |> Result.map (fun seasonTable -> showTotalTable seasonTable gamesToCount)
+                    |> Result.map (fun seasonTable -> showTotalTable seasonTable gamesToCount |> Async.RunSynchronously)
             } |> Async.RunSynchronously
             
         | None -> Ok()

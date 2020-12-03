@@ -6,21 +6,12 @@
     <Compile Include="Utils.fs" />
     <Compile Include="Domain.fs" />
     <Compile Include="Actions.fs" />
-    <Compile Include="GoogleChartService.fs" />
-    <Compile Include="SpreadsheetService.fs" />
-    <Compile Include="SpreadsheetWriter.fs" />
-    <Compile Include="Chart.fs" />
     <Compile Include="SixtySecondsProgramBuilder.fs" />
     <Compile Include="SixtySecondsWorkflow.fs" />
-    <Content Include="Google.DataTable.Net.Wrapper.XML" />
-    <None Include="credentials.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Data" Version="3.3.3" />
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.43.0.1832" />
-    <PackageReference Include="XPlot.GoogleCharts" Version="3.0.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SixtySeconds.Common\SixtySeconds.Common.fsproj" />

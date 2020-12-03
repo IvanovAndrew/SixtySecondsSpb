@@ -1,0 +1,9 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/AssemblyExplorer/XmlDocument/@EntryValue">&lt;AssemblyExplorer&gt;
+  &lt;Assembly Path="/home/warrior/.nuget/packages/fulma/2.10.0/lib/netstandard2.0/Fulma.dll" /&gt;
+&lt;/AssemblyExplorer&gt;</s:String>
+	
+	
+	<s:Boolean x:Key="/Default/UnloadedProject/UnloadedProjects/=aaed2ec2_002Dded2_002D4e2b_002Dbb47_002D92562a6cb23b_0023SixtySeconds_002EViews/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/UnloadedProject/UnloadedProjects/=c04b402f_002D38c7_002D4fb5_002Dbaf9_002D3a06d325da34_0023SixtySeconds_002EGUI/@EntryIndexedValue">True</s:Boolean>
+	</wpf:ResourceDictionary>

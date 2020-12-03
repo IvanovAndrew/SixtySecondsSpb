@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="..\Client\Shared.fs">
+          <Link>Shared.fs</Link>
+        </Compile>
+        <Compile Include="WebApp.fs" />
+        <Compile Include="Program.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Fable.Remoting.Server" Version="5.10.0" />
+      <PackageReference Include="Fable.Remoting.Suave" Version="4.10.0" />
+    </ItemGroup>
+
+</Project>

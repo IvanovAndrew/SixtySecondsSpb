@@ -12,7 +12,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\SAFE-StackWebAppv2.2.0\src\Shared\Shared.fsproj" />
       <ProjectReference Include="..\SixtySeconds.Data\SixtySeconds.Data.fsproj" />
+      <ProjectReference Include="..\SixtySeconds.Services\SixtySeconds.Services.fsproj" />
       <ProjectReference Include="..\SixtySeconds\SixtySeconds.fsproj" />
     </ItemGroup>
 

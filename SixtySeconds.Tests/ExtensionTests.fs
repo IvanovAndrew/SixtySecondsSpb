@@ -4,7 +4,7 @@ open FsCheck
 open NUnit.Framework
 open FsCheck.NUnit
 
-[<TestFixture>]
+(*[<TestFixture>]
 module SeqExceptLastExampleTests =
     
     open Utils
@@ -60,7 +60,7 @@ module ``ExceptLast function specification`` =
         let lengthAfter = seq |> Seq.exceptLast |> Seq.length
         
         lengthBefore - lengthAfter = 1
-        
+*)        
 module ``Result combine function specification`` =
     
     open TestUtils

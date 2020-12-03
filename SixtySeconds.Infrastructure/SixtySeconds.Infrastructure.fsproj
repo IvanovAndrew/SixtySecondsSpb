@@ -5,12 +5,16 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="DomainToModelMapping.fs" />
+        <Compile Include="ModelToDomainMapping.fs" />
         <Compile Include="SixtySecondsProgramInterpreter.fs" />
         <Compile Include="SixtySecondsApi.fs" />
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\SAFE-StackWebAppv2.2.0\src\Shared\Shared.fsproj" />
       <ProjectReference Include="..\SixtySeconds.Data\SixtySeconds.Data.fsproj" />
+      <ProjectReference Include="..\SixtySeconds.Services\SixtySeconds.Services.fsproj" />
       <ProjectReference Include="..\SixtySeconds\SixtySeconds.fsproj" />
     </ItemGroup>
 

@@ -2,8 +2,10 @@
 
 open SixtySeconds.Domain
 open SixtySeconds.Actions
-open GoogleChartService
+open SixtySeconds.Services
+open SixtySeconds.Services.GoogleChartService
 open SixtySeconds.Common.CommonTypes
+
 
 let showGraphic data (teams : Team seq) gameDay vAxis = 
     

@@ -1,32 +1,35 @@
-﻿module GoogleChartService
+﻿namespace SixtySeconds.Services
 
-type Direction = 
-    | Forward
-    | Back
+module GoogleChartService = 
 
-type AxisOption = 
-    {
-        Direction : Direction
-        Label : string
-        Maximum : int
-    }
+    type Direction = 
+        | Forward
+        | Back
 
-type ChartOptions = 
-    {
-        HorizonalAxis : AxisOption
-        VerticalAxis : AxisOption
-        Title : string
-    }
-    
-[<RequireQualifiedAccess>]
-type ChartType = 
-    | Table 
-    | Line of ChartOptions
+    type AxisOption = 
+        {
+            Direction : Direction
+            Label : string
+            Maximum : int
+        }
+
+    type ChartOptions = 
+        {
+            HorizonalAxis : AxisOption
+            VerticalAxis : AxisOption
+            Title : string
+        }
+        
+    [<RequireQualifiedAccess>]
+    type ChartType = 
+        | Table 
+        | Line of ChartOptions
 
 module GoogleChart = 
     
     open XPlot.GoogleCharts
     open System
+    open GoogleChartService
 
     
     type private GoogleChart = XPlot.GoogleCharts.Chart
@@ -96,20 +99,23 @@ module GoogleChart =
 
     let showData (data : seq<seq<_>>) labels chartType = 
         
-        let options = 
-            match chartType with 
-            | ChartType.Table -> Options(showRowNumber = true)
-            | ChartType.Line options -> 
-                getOptions options
+        async {
+        
+            let options = 
+                match chartType with 
+                | ChartType.Table -> Options(showRowNumber = true)
+                | ChartType.Line options -> 
+                    getOptions options
 
-        let chart = 
-            match chartType with 
-            | ChartType.Table -> 
-                data
-                |> GoogleChart.Table
-            | ChartType.Line _ -> data |> GoogleChart.Line
+            let chart = 
+                match chartType with 
+                | ChartType.Table -> 
+                    data
+                    |> GoogleChart.Table
+                | ChartType.Line _ -> data |> GoogleChart.Line
 
-        chart
-        |> GoogleChart.WithOptions options
-        |> GoogleChart.WithLabels labels
-        |> GoogleChart.Show
+            chart
+            |> GoogleChart.WithOptions options
+            |> GoogleChart.WithLabels labels
+            |> GoogleChart.Show
+        }
