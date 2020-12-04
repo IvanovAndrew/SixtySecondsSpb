@@ -7,10 +7,6 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SixtySeconds", "SixtySecond
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SixtySeconds.Tests", "SixtySeconds.Tests\SixtySeconds.Tests.fsproj", "{03D2A5D7-70D7-4DD8-B587-45BF963E6800}"
 EndProject
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "SixtySeconds.GUI", "SixtySeconds.GUI\SixtySeconds.GUI.fsproj", "{C04B402F-38C7-4FB5-BAF9-3A06D325DA34}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SixtySeconds.Views", "SixtySeconds.Views\SixtySeconds.Views.csproj", "{AAED2EC2-DED2-4E2B-BB47-92562A6CB23B}"
-EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SixtySeconds.Console", "SixtySeconds.Console\SixtySeconds.Console.fsproj", "{64E759CA-AAEC-47C4-8D6D-D1C2F2F3C3C1}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SixtySeconds.Common", "SixtySeconds.Common\SixtySeconds.Common.fsproj", "{1562FEEB-B9BF-40F5-A68B-A59C50EBE4F2}"
@@ -47,14 +43,6 @@ Global
 		{03D2A5D7-70D7-4DD8-B587-45BF963E6800}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{03D2A5D7-70D7-4DD8-B587-45BF963E6800}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{03D2A5D7-70D7-4DD8-B587-45BF963E6800}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C04B402F-38C7-4FB5-BAF9-3A06D325DA34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C04B402F-38C7-4FB5-BAF9-3A06D325DA34}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C04B402F-38C7-4FB5-BAF9-3A06D325DA34}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C04B402F-38C7-4FB5-BAF9-3A06D325DA34}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AAED2EC2-DED2-4E2B-BB47-92562A6CB23B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AAED2EC2-DED2-4E2B-BB47-92562A6CB23B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AAED2EC2-DED2-4E2B-BB47-92562A6CB23B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AAED2EC2-DED2-4E2B-BB47-92562A6CB23B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{64E759CA-AAEC-47C4-8D6D-D1C2F2F3C3C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{64E759CA-AAEC-47C4-8D6D-D1C2F2F3C3C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{64E759CA-AAEC-47C4-8D6D-D1C2F2F3C3C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
