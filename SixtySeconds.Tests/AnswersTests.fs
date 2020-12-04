@@ -57,8 +57,7 @@ module ``Find strike specification`` =
             answers
             |> invertAnswers
             |> Answers.findStrike (match strike with Best -> Worst | Worst -> Best)
-        
-        answersStrikes = invertedOppositeStrike
+        answersStrikes.Count = invertedOppositeStrike.Count
         
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<RightAnswersGenerator>|])>]
     let ``If all answers are right then best strike will be equal to answers count`` answers =
