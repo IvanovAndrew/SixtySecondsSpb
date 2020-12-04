@@ -315,10 +315,18 @@ let parse60SecondGameDay tournamentInfo gameName json =
         let results = props |> Array.find (fun p -> fst p = "results") |> snd
         let teamResults = results.AsString() |> JsonValue.Parse
     
+        let questionsCount =
+            let team = 
+                seq {
+                    for jsonTeam in teamResults do
+                        yield jsonTeam 
+                    } |> Seq.head
+            team?newmask.AsArray()
+            |> Array.length
+            
         let emptyGameday =
             result {
-                // TODO fix it
-                let! packageSize = PositiveNum.ofInt 36
+                let! packageSize = PositiveNum.ofInt questionsCount
                 return
                     {
                         Tournament = tournamentInfo
