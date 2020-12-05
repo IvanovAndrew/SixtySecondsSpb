@@ -34,18 +34,18 @@ type StrikeInfo =
 
 //type PlaceInfo = {Place : Place; Question : int}
 
-    type TeamPerformance =
-        {
-            Team : TeamModel
-            BestPlace : PlaceInfoModel
-            WorstPlace : PlaceInfoModel
-            BestStrike : StrikeInfo
-            WorstStrike : StrikeInfo
-            DifficultAnsweredQuestion : int
-            DifficultAnsweredQuestionCount : int
-            SimplestWrongAnsweredQuestion : int
-            SimplestWrongAnsweredQuestionCount : int
-        }
+type TeamPerformance =
+    {
+        Team : TeamModel
+        BestPlace : PlaceInfoModel
+        WorstPlace : PlaceInfoModel
+        BestStrike : StrikeInfo
+        WorstStrike : StrikeInfo
+        DifficultAnsweredQuestion : int
+        DifficultAnsweredQuestionCount : int
+        SimplestWrongAnsweredQuestion : int
+        SimplestWrongAnsweredQuestionCount : int
+    }
 
 type SeasonTable =
     {
@@ -294,7 +294,7 @@ module Team =
 
     let bestPlace gameDay team =
 
-        let minimumQuestions = 6
+        let minimumQuestions = if gameDay.PackageSize > 12 then 6 else gameDay.PackageSize / 2
 
         let question, place =
             team
@@ -304,9 +304,10 @@ module Team =
 
         {Place = place; Question = question}
 
+    // TODO almost duplicate bestPlace function 
     let worstPlace gameDay team =
 
-        let minimumQuestions = 6
+        let minimumQuestions = if gameDay.PackageSize > 12 then 6 else gameDay.PackageSize / 2 
 
         let question, place =
             team

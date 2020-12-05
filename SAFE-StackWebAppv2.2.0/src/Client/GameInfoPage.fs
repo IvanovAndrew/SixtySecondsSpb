@@ -49,7 +49,7 @@ type Message =
 
 let update message model =
     match message, model.ModalWindow with
-    | OpenWriteToSpreadsheet, _ ->
+    | OpenWriteToSpreadsheet, None ->
         let innerState = WriteToSpreadsheetModalPage.init model.GameDay
         {model with ModalWindow = Some <| Spreadsheet(innerState) }, Cmd.none
 
@@ -59,7 +59,7 @@ let update message model =
 
     | CloseWriteToSpreadsheet, _ -> {model with ModalWindow = None; }, Cmd.none
 
-    | OpenTeamPerformance, _ ->
+    | OpenTeamPerformance, None ->
         let team = model.GameDay |> GameDay.teams |> Seq.head
         let performanceState, cmds = TeamPerformanceModalPage.init model.GameDay team
         {model with ModalWindow = Some <| TeamPerformance(performanceState) }, cmds |> Cmd.map UpdateTeamPerformance
@@ -71,7 +71,7 @@ let update message model =
     | CloseTeamPerformance, _ -> {model with ModalWindow = None}, Cmd.none
 
 
-    | OpenChartWindow, _ ->
+    | OpenChartWindow, None ->
         let chartState, cmds = ChartModalPage.init(model.GameDay)
         {model with ModalWindow = Some <| Chart(chartState)}, cmds |> Cmd.map UpdateChartWindow
     | UpdateChartWindow msg, Some (Chart chartState) ->
