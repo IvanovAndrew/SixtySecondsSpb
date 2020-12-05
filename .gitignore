@@ -3,3 +3,11 @@
 */obj/*
 /.idea/.idea.SixtySeconds/.idea/*
 /.vs/*
+
+node_modules/
+
+SAFE-StackWebAppv2.2.0/package-lock.json
+
+package-lock.json
+
+SixtySeconds.sln.DotSettings.user
