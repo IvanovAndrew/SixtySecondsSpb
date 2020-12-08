@@ -22,6 +22,45 @@ let gameday : GameDayModel =
         }
 
 let client = testList "Client" [
+    
+    testCase "Bad url entered" <| fun _ ->
+        let initialModel, _ = MainPage.init()
+        
+        let model, _ = MainPage.update (MainPage.UrlEntered "localhost") initialModel
+        
+        let expected = Error "Unknown url type" 
+        Expect.equal model.Status expected "localhost should not be accepted"
+        
+    testCase "Game url entered" <| fun _ ->
+        
+        let model, _ =
+            MainPage.init()
+            |> fst
+            |> MainPage.update (MainPage.UrlEntered "https://60sec.online/game/*")
+        
+        let expected = Ok "Game url entered" 
+        Expect.equal model.Status expected "https://60sec.online/game/ should be accepted"
+        
+    testCase "Season url entered" <| fun _ ->
+        let model, _ =
+            MainPage.init()
+            |> fst
+            |> MainPage.update (MainPage.UrlEntered "https://60sec.online/season/*")
+        
+        let expected = Ok "Season url entered" 
+        Expect.equal model.Status expected "https://60sec.online/season/ should be accepted"
+        
+    testCase "Url cleared" <| fun _ ->
+        let model, _ =
+            MainPage.init()
+            |> fst
+            |> MainPage.update (MainPage.UrlEntered "https://60sec.online/season/*")
+            |> fst
+            |> MainPage.update MainPage.UrlCleared
+        
+        let expected = Ok "" 
+        Expect.equal model.Status expected ""
+    
     testCase "Open spreadsheet window" <| fun _ ->
         
         let model = GameDayPage.init gameday

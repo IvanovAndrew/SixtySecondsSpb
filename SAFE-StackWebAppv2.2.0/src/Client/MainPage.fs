@@ -24,12 +24,19 @@ type UrlKind =
 type State =
     {
         Url : UrlKind option
-        Status : string
+        Status : Result<string, string>
         Page : Page
     }
+    
+let private checkUrl (url : string) =
+    
+    if url.StartsWith("https://60sec.online/season") then url |> Season |> Ok
+    elif url.StartsWith("https://60sec.online/game") then url |> Game |> Ok
+    else Error "Unknown url type"
 
 type Message =
     | UrlEntered of string
+    | UrlCleared
     | ButtonPressed
     | GameLoaded of GameDayModel
     | GameNotLoaded of string
@@ -41,18 +48,22 @@ type Message =
 let init(): State * Cmd<Message> =
     {
         Url = None
-        Status = ""
+        Status = Ok ""
         Page = UrlPage
     }, []
 
 let update message state =
     match message, state.Page with
     | UrlEntered s, _ ->
-        let url =
-            if s.StartsWith("https://60sec.online/season") then Some <| Season s
-            elif s.StartsWith("https://60sec.online/game") then Some <| Game s
-            else None
-        {state with Url = url; Status = ""}, Cmd.none
+        match checkUrl s with
+        | Ok url ->
+            let text =
+                match url with
+                | Game _ -> "Game url entered"
+                | Season _ -> "Season url entered"
+            {state with Url = Some url; Status = Ok text}, Cmd.none
+        | Error e -> {state with Url = None; Status = Error e}, Cmd.none
+    | UrlCleared, _ -> {state with Url = None; Status = Ok ""}, Cmd.none
     | ButtonPressed, _ ->
         match state.Url with
         | Some site ->
@@ -77,9 +88,9 @@ let update message state =
                 state, Cmd.OfAsync.either sixtySecondsApi.parseGameDay gameUrl ofSuccess ofError
         | None -> state, Cmd.none
     | GameLoaded gd, _ -> {state with Page = GameInfoPage <| GameDayPage.init gd }, Cmd.none
-    | GameNotLoaded e, _ -> {state with Status = e}, Cmd.none
+    | GameNotLoaded e, _ -> {state with Status = Error e}, Cmd.none
     | SeasonTableLoaded st, _ -> {state with Page = SeasonInfoPage <| SeasonInfoPage.init st}, Cmd.none
-    | SeasonTableNotLoaded e, _ -> {state with Status = e}, Cmd.none
+    | SeasonTableNotLoaded e, _ -> {state with Status = Error e}, Cmd.none
 
     | SeasonInfoMessage message, SeasonInfoPage page ->
 
@@ -101,32 +112,33 @@ let render (state : State) (dispatch: Message -> unit) =
     match state.Page with
     | UrlPage ->
 
-        let buttonText =
-            match state.Url with
-            | Some v ->
-                match v with
-                | Game _ -> "Show game info"
-                | Season _ -> "Show season info"
-            | None -> "Show season info"
+        let help =
+            match state.Status with
+            | Ok text -> Help.help [Help.Color IsSuccess] [str text]
+            | Error error -> Help.help [Help.Color IsDanger] [str error]
 
         div []
             [
-                Message.message []
+                Field.div []
                     [
-                        str "Url"
-                        Input.text
-                                [
-                                    Input.Placeholder "Enter url like this https://60sec.online/season/1031/"
-                                    Input.OnChange (fun x -> x.Value |> UrlEntered |> dispatch)
-                                ]
-                        Help.help [Help.Color IsDanger] [str state.Status]
-                        Button.button
-                                [
-                                    Button.Disabled (state.Url |> Option.isNone)
-                                    Button.OnClick (fun x -> ButtonPressed |> dispatch)
-                                ]
-                                [str buttonText]
+                        Label.label [] [str "Url"]
+                        Control.div []
+                            [
+                                Input.text
+                                    [
+                                        (match state.Status with Ok _ -> Input.Color NoColor | _ -> Input.Color IsDanger)
+                                        Input.Placeholder "Enter url like this https://60sec.online/season/1031/"
+                                        Input.OnChange (fun x -> x.Value |> (fun x -> if x = "" then UrlCleared else UrlEntered x) |> dispatch)
+                                    ]
+                                help
+                            ]
                     ]
+                Button.button
+                    [
+                        Button.Disabled (state.Url |> Option.isNone)
+                        Button.OnClick (fun x -> ButtonPressed |> dispatch)
+                    ]
+                    [str "Show info"]
             ]
 
     | SeasonInfoPage state -> SeasonInfoPage.render state dispatchSeasonInfoPage
