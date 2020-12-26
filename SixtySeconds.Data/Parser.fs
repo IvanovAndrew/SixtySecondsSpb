@@ -446,12 +446,26 @@ let parseTotalFrom60SecSite document =
             |> List.head
             |> HtmlNode.elements
             
-        {
-            TeamIdColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "Название"))
-            TeamNameColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "Название"))
-            FirstResultColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "Сумма")) |> (+) 1
-            FinalResultColumn = optionsLineNode |> Seq.length |> (+) -1
-        }   
+        
+            
+        result {
+            let! teamIdColumn =
+                optionsLineNode |> Seq.tryFindIndex (HtmlNode.innerText >> ((=) "Название"))
+                |> Result.ofOption "Название"
+                |> expectTableColumnNotFoundError
+                
+            let! sumColumn =
+                optionsLineNode |> Seq.tryFindIndex (HtmlNode.innerText >> (String.containsSubstring "Сумма"))
+                |> Result.ofOption "Сумма"
+                |> expectTableColumnNotFoundError
+                
+            return {
+                TeamIdColumn = teamIdColumn
+                TeamNameColumn = teamIdColumn
+                FirstResultColumn = sumColumn |> (+) 1
+                FinalResultColumn = optionsLineNode |> Seq.length |> (+) -1
+            }
+        }
         
     let parseLine options node =
         
@@ -507,21 +521,27 @@ let parseTotalFrom60SecSite document =
         |> Result.map (fun team -> (team, res))
         
     let total =
-        let teamLines = 
-            tableNodes
-            |> HtmlNode.elements
-            |> List.tail
-            |> List.head
-            |> HtmlNode.elements
+        
+        let buildTotal opt = 
+        
+            let teamLines = 
+                tableNodes
+                |> HtmlNode.elements
+                |> List.tail
+                |> List.head
+                |> HtmlNode.elements
+                
+            let seasonTable data =
+                data
+                |> SeasonTable.ofSeq
+                |> expectSeasonHasNotStartedError
+                
+            teamLines
+            |> Seq.map (parseLine opt)
+            |> Result.combine
+            |> Result.bind seasonTable
             
-        let seasonTable data =
-            data
-            |> SeasonTable.ofSeq
-            |> expectSeasonHasNotStartedError
-            
-        teamLines
-        |> Seq.map (parseLine options)
-        |> Result.combine
-        |> Result.bind seasonTable
+        options
+        |> Result.bind buildTotal
     
     total

@@ -9,6 +9,7 @@ module Errors =
     | MissingSeasonName
     | MissingGameName
     | MissingAnswersCount
+    | TableColumnNotFound of string
     | TeamParsingError of string
     | AnswersParsingError of string
     | SheetNotFound of string
@@ -35,6 +36,7 @@ module Errors =
     
     let expectWebRequestError result = result |> Result.mapError WebRequestError
     let expectParsingError result = result |> Result.mapError ParsingError
+    let expectTableColumnNotFoundError result = result |> Result.mapError TableColumnNotFound
     let expectTeamParsingError result = result |> Result.mapError TeamParsingError
     let expectDuplicatedTeam result = result |> Result.mapError DuplicatedTeam
     let expectMissingCityName result = result |> Result.mapError (fun _ -> MissingLeagueName)
