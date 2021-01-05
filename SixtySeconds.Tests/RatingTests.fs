@@ -16,10 +16,18 @@ module RatingTests =
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<RatingGenerator>|])>]
     let ``Rating places don't intersect`` (seq : (Team * int) list) =
         
+        let teamToRating team =
+            seq
+            |> Seq.find (fun (v, i) -> v = team)
+            |> snd
+        
         let places = 
             seq
-            |> Rating.ofSeq
-            |> List.map (fun (_, _, place) -> place)
+            |> Seq.map fst
+            |> Rating.places teamToRating
+            |> Map.toSeq
+            |> Seq.map snd
+            |> List.ofSeq
             
         let rec processPlace remainedPlaces = 
             let notIntersect one two =
@@ -44,10 +52,17 @@ module RatingTests =
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<RatingGenerator>|])>]
     let ``Rating places hasn't gaps`` (seq : (Team * int) list) =
         
+        let teamToRating team =
+            seq
+            |> Seq.find (fun (v, i) -> v = team)
+            |> snd
+        
         let places = 
             seq
-            |> Rating.ofSeq
-            |> List.map (fun (_, _, place) -> place)
+            |> Seq.map fst
+            |> Rating.places teamToRating
+            |> Map.toSeq
+            |> Seq.map snd
             |> Seq.distinct
             |> Seq.sort
             
@@ -67,9 +82,15 @@ module RatingTests =
     [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<RatingGenerator>|])>]
     let ``Team from the first place is always head of rating`` (seq : (Team * int) list) =
         
+        let teamToRating team =
+            seq
+            |> Seq.find (fun (v, i) -> v = team)
+            |> snd
+        
         let (_, _, place) = 
             seq
-            |> Rating.ofSeq
+            |> List.map fst
+            |> Rating.createRating teamToRating
             |> List.head
             
         place.From = PositiveNum.numOne
@@ -100,3 +121,44 @@ module RatingTests =
             
         let place = Team.getPlace gameDay teamWithMinimumAnswers
         place.To = lastPlace
+        
+    [<Property(QuietOnSuccess = true, Arbitrary = [|typeof<SeasonResults>|])>]
+    let ``Season rating with counted final game is greater than season rating without final game`` seasonResults =
+        
+        let finalGameDate =
+            seasonResults
+            |> Map.values
+            |> Seq.collect (fun rp -> rp)
+            |> Seq.map (fun gdp -> gdp.Date)
+            |> Seq.max
+        
+        let calculateRating team rating =
+            
+            rating
+            |> Seq.find (fun (t, _, _) -> t = team)
+            |> (fun (_, v, _) -> v) 
+        
+        let ratingFilter =
+            {
+                GamesToCount = seasonResults |> SeasonResults.gamesAmount |> PositiveNum.ofConst
+                FinalDate = NotPlayedYet
+                RatingOption = FinalGameCounts
+            }
+        
+        let ratingWithFinalGame team = 
+            seasonResults
+            |> SeasonTable.topNResult {ratingFilter with RatingOption = FinalGameCounts}
+            |> calculateRating team
+        
+        let ratingWithoutFinalGame team =
+            seasonResults
+            |> SeasonTable.topNResult {ratingFilter with RatingOption = FinalGameDoesntCount; FinalDate = AlreadyPlayed finalGameDate}
+            |> calculateRating team
+            
+        let prop team =
+            let withFinal, withoutFinal = ratingWithFinalGame team, ratingWithoutFinalGame team
+            withFinal >= withoutFinal
+            
+        seasonResults
+        |> SeasonResults.teams
+        |> Seq.forall prop 

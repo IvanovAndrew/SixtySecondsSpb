@@ -3,6 +3,7 @@ module Client.Tests
 open Fable.Mocha
 
 open Shared.Models
+open System
 
 let gameday : GameDayModel =
         {
@@ -20,6 +21,15 @@ let gameday : GameDayModel =
                 ] |> Map.ofSeq
             PackageSize = 3
         }
+        
+let seasonTableModel : SeasonResultModel =
+    
+        [
+            {Id = 1; Name = "Team 1"}, [{Date = DateTime(2020, 11, 1); Points = 10m}; {Date = DateTime(2020, 12, 1); Points = 2m};{Date = DateTime(2020, 12, 15); Points = 3m};]
+            {Id = 2; Name = "Team 2"}, [{Date = DateTime(2020, 11, 1); Points = 5m}; {Date = DateTime(2020, 12, 1); Points = 5m};{Date = DateTime(2020, 12, 15); Points = 5m};]
+            {Id = 3; Name = "Team 3"}, [{Date = DateTime(2020, 11, 1); Points = 2m}; {Date = DateTime(2020, 12, 1); Points = 3m};{Date = DateTime(2020, 12, 15); Points = 5m};]
+        ]
+        |> Map.ofList
 
 let client = testList "Client" [
     
@@ -129,6 +139,37 @@ let client = testList "Client" [
         let updatedModel, _ = GameDayPage.update (GameDayPage.CloseChartWindow) model
         
         Expect.equal None updatedModel.ModalWindow "Chart window should be closed"
+        
+    testCase "Season table: final game counts towards season by default" <| fun _ ->
+        
+        let initialModel, _ = SeasonInfoPage.init seasonTableModel
+        
+        let expected = FinalGameCounts
+        Expect.equal initialModel.Filter.RatingOption expected "Final games should be counted by default"
+        
+    testCase "Season table: final game has not played by default" <| fun _ ->
+        
+        let initialModel, _ = SeasonInfoPage.init seasonTableModel
+        
+        let expected = NotPlayedYet 
+        Expect.equal initialModel.Filter.FinalDate expected "Final games should be not played by default"
+        
+    testCase "Season table has maximum games to count by default" <| fun _ ->
+            
+        let initialModel, _ = SeasonInfoPage.init seasonTableModel
+        
+        Expect.equal initialModel.MaximumGames initialModel.Filter.GamesToCount  "Season table has maximum games to count by default"
+        
+    testCase "Season table: when final game doesn't count then maximum games is lesser by one" <| fun _ ->
+            
+        let model = 
+            seasonTableModel
+            |> SeasonInfoPage.init
+            |> fst
+            |> SeasonInfoPage.update (SeasonInfoPage.Message.FinalGameCountsChanged(false))
+            |> fst
+        
+        Expect.equal model.MaximumGames 2 "Season table has maximum games to count by default"
 ]
 
 let all =

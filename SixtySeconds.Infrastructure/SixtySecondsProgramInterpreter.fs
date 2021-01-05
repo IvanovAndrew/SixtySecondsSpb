@@ -14,7 +14,7 @@ module SixtySecondsProgramInterpreter =
     let private gameDayRating = SixtySecondsDataPipeline.getGameDayRating
         
     let private parseSeasonRating = SixtySecondsDataPipeline.parseSeasonRating
-    let private topNResultsTable (seasonTable, games) = SixtySecondsDataPipeline.topNResultsTable seasonTable games
+    let private topNResultsTable (options, seasonResults) = SixtySecondsDataPipeline.topNResultsTable options seasonResults
     
     let rec private interpretSixtySecondsProgram (prog : Program<'a>) =
         match prog with
@@ -27,8 +27,8 @@ module SixtySecondsProgramInterpreter =
         | ParseSeasonRating (url, next) ->
             url |> parseSeasonRating |> bindAsync (next >> interpretSixtySecondsProgram)
             
-        | TopNResultsTable (seasonTable, next) ->
-            seasonTable |> topNResultsTable |> bindAsync (next >> interpretSixtySecondsProgram)
+        | TopNResultsTable ((options, seasonResults), next) ->
+            (options, seasonResults) |> topNResultsTable |> bindAsync (next >> interpretSixtySecondsProgram)
         
         | Stop a -> async.Return a
         

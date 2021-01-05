@@ -1,5 +1,7 @@
 ﻿namespace Shared
 
+open System
+
 module Models =
 
     type TeamModel =
@@ -34,13 +36,37 @@ module Models =
             PackageSize : int
         }
 
+    type GamedayPointsModel =
+        {
+            Date : DateTime
+            Points : decimal
+        }
+        
+    type SeasonResultModel = Map<TeamModel, GamedayPointsModel list>
+        
     type SeasonTableModel =
         {
-            Results : Map<TeamModel, decimal seq>
+            Results : SeasonResultModel
             Table : (TeamModel * decimal * PlaceModel) list
             GamesCount : int
         }
 
+    type FinalDateModel =
+        | PlayedAlready of DateTime
+        | NotPlayedYet
+        
+    type RatingOption =
+        | FinalGameDoesntCount
+        | FinalGameCounts 
+    
+    type RatingFilterModel =
+        {
+            GamesToCount : int
+            FinalDate : FinalDateModel
+            RatingOption : RatingOption
+        }
+        
+    
 
     type SheetOptions =
         {
@@ -67,3 +93,6 @@ module Models =
     type ChartType =
         | Answers of ShowChartsInput
         | Places of ShowChartsInput
+        
+        
+    

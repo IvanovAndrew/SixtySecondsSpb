@@ -10,8 +10,8 @@ module SixtySecondsProgramBuilder =
         | ParseGameDay of (Url * GameName) * (Result<GameDay, SixtySecondsError> -> Program<'a>)
         | GameDayRating of gameDay : GameDay * (GameDayRating -> Program<'a>)
         
-        | ParseSeasonRating of url : Url * (Result<SeasonTable, SixtySecondsError> -> Program<'a>)
-        | TopNResultsTable of (SeasonTable * PositiveNum) * (SeasonRating -> Program<'a>)
+        | ParseSeasonRating of url : Url * (Result<SeasonResults, SixtySecondsError> -> Program<'a>)
+        | TopNResultsTable of (SeasonResultFilter * SeasonResults) * (SeasonRating -> Program<'a>)
         | Stop of 'a
         
     // This bind function allows you to pass a continuation for current node of your expression tree
@@ -29,13 +29,13 @@ module SixtySecondsProgramBuilder =
     let parseGameDay url gameName = ParseGameDay ((url, gameName), stop)
     let gameDayRating gameDay = GameDayRating(gameDay, stop)
     let parseSeasonRating url = ParseSeasonRating (url, stop)
-    let topNResult seasonTable games = TopNResultsTable((seasonTable, games), stop)
+    let topNResult options seasonTable = TopNResultsTable((options, seasonTable), stop)
             
     // These are builders for computation expressions. Using CEs will make building execution trees very easy
     type SimpleProgramBuilder() =
         member __.Bind (x, f) = bind f x
         member __.Return x = Stop x
-        member __.Zero () = Stop ()
+        member __.Zero() = Stop()
         member __.ReturnFrom x = x
 
     type ProgramBuilder() =

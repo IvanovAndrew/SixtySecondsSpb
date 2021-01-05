@@ -2,11 +2,8 @@ module Parser
 
 open System
 open FSharp.Data
-open FSharp.Data
-open FSharp.Data
 open FSharp.Data.JsonExtensions
 
-open FSharp.Data
 open SixtySeconds.Domain
 open SixtySeconds.Actions
 
@@ -65,8 +62,7 @@ type RatingParserOption =
     {
         TeamIdColumn : int 
         TeamNameColumn : int
-        FirstResultColumn : int
-        FinalResultColumn : int
+        GamedayResultColumns : (int * DateTime) list
     }
 
 module HtmlNode = 
@@ -345,6 +341,97 @@ let parse60SecondGameDay tournamentInfo gameName json =
         |> createGameDay emptyGameday parseTeam 
     | x -> x.AsString()  |> UnexpectedJson |> Error 
         
+let private tryParseDecimal s = 
+    s 
+    |> String.replace "," "."
+    |> (fun s -> if s <> "" then s |> decimal |> Some else None)
+    
+let private parseDate str =
+    let dateParts =
+        str
+        |> String.splitByChar [|'.'|]
+        |> Array.map int
+        
+    match dateParts with
+    | [|day; month; year|] -> Ok <| DateTime((if year < 100 then 2000 + year else year), month, day)
+    | _ -> Error <| sprintf "Can not parse date %s" str
+    
+let private parseResultInfo options (index, value) =
+    let date =
+        options.GamedayResultColumns
+        |> List.find (fun (ind, _) -> ind = index)
+        |> snd
+        
+        
+    let points =
+        let pointOption = 
+            value
+            |> HtmlNode.innerText
+            |> tryParseDecimal
+        match pointOption with
+        | Some v -> v |> Converter.pointFromDecimal |> Played
+        | None -> Missed
+        
+    {Date = date; Point = points}
+    
+type SeasonTableOptions =
+    {
+        TeamId : string
+        TeamName : string
+        Sum : string
+    }
+    
+let private parseSeasonTableOptions names node =
+    result {
+        let! teamIdColumn =
+            node
+            |> Seq.tryFindIndex (HtmlNode.innerText >> ((=) names.TeamId))
+            |> Result.ofOption names.TeamId
+            |> expectTableColumnNotFoundError
+            
+        let! teamNameColumn =
+            node
+            |> Seq.tryFindIndex (HtmlNode.innerText >> ((=) names.TeamName))
+            |> Result.ofOption names.TeamName
+            |> expectTableColumnNotFoundError
+        
+        let! firstResultColumn =
+            node
+            |> Seq.tryFindIndex (HtmlNode.innerText >> (String.containsSubstring names.Sum))
+            |> Option.map ((+) 1)
+            |> Result.ofOption names.Sum
+            |> expectTableColumnNotFoundError
+            
+        let! columnsWithResult =
+            node
+            |> List.skip firstResultColumn
+            |> Seq.mapi (fun i n -> n |> HtmlNode.innerText |> parseDate |> Result.map (fun date -> i + firstResultColumn, date))
+            |> Result.combine
+            |> Result.map List.ofSeq
+            |> expectCantParseDateError
+
+        return {
+            TeamIdColumn = teamIdColumn
+            TeamNameColumn = teamNameColumn
+            GamedayResultColumns = columnsWithResult 
+        }
+    }
+    
+let private parseSeasonResults teamLines parseLine : Result<SeasonResults, ParsingError> =
+    
+    let foldFunction acc teamLine =
+        
+        let processTeam map =
+            teamLine
+            |> parseLine
+            |> Result.map (fun (team, results) -> map |> Map.add team results)
+        
+        acc
+        |> Result.bind processTeam 
+    
+    teamLines
+    |> Seq.fold foldFunction (Ok Map.empty)
+        
 let parseTotalFromGoogleSpreadsheet document = 
     
     let parseLine options node = 
@@ -352,79 +439,64 @@ let parseTotalFromGoogleSpreadsheet document =
         let innerTextOfNode n index = 
             n 
             |> HtmlNode.elements
-            |> Seq.item index 
+            |> List.item index 
             |> HtmlNode.innerText
 
         let innerTextOfNode' = innerTextOfNode node
 
-        let tryParseDecimal s = 
-            s 
-            |> String.replace "," "."
-            |> (fun s -> if s <> "" then s |> decimal |> Some else None)
-
         let filterResultNodes elements =
+            let resultIndices  =
+                options.GamedayResultColumns
+                |> List.map fst
+            
             elements
-            |> Seq.mapi (fun index value -> (index, value))
-            |> Seq.filter (fun (index, _) -> index <> options.FinalResultColumn)
-            |> Seq.skip options.FirstResultColumn
-            |> Seq.map (fun (_, value) -> value)
+            |> List.filter (fun (i, _) -> resultIndices |> List.exists ((=) i))
         
-        let res = 
+        let parseResultInfo' = parseResultInfo options
+        
+        let teamResults = 
             node
             |> HtmlNode.elements
+            |> List.indexed
             |> filterResultNodes
-            |> Seq.map (HtmlNode.innerText >> tryParseDecimal)
-            |> Seq.choose id
-            |> Seq.map Converter.pointFromDecimal
+            |> List.map parseResultInfo'
         
         innerTextOfNode'
         |> parseTeam options.TeamIdColumn options.TeamNameColumn
-        |> Result.map (fun team -> (team, res))
-
-    let seasonRating = 
-
-        result{
-            
-            let! sheetNode =
-                "60 сек"
-                |> NoEmptyString.ofConstString
-                |> findSheetNode document
-                 
-                
-            let parserOptions = 
-                
-                let optionsLineNode = 
+        |> Result.map (fun team -> (team, teamResults))
+        
+    let parseOptions sheetNode =
+        
+        result {
+            let optionsLineNode = 
                     
-                    sheetNode
-                    |> HtmlNode.firstElement
-                    |> HtmlNode.elements
-
-                {
-                    TeamIdColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "№"))
-                    TeamNameColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "Команда"))
-                    FirstResultColumn = optionsLineNode |> Seq.findIndex (HtmlNode.innerText >> ((=) "сум")) |> (+) 2
-                    FinalResultColumn = optionsLineNode |> Seq.length |> (+) -1
-                }
-                
-            let linesWithTeams =
                 sheetNode
+                |> HtmlNode.firstElement
                 |> HtmlNode.elements
-                |> Seq.skip 2
-                |> (Seq.exceptLast >> Seq.exceptLast)
                 
-                
-            let seasonTable data =
-                data
-                |> SeasonTable.ofSeq
-                |> expectSeasonHasNotStartedError
+            return! parseSeasonTableOptions { TeamId = "№"; TeamName = "Команда"; Sum = "сум";} optionsLineNode
+        }        
 
-            return!
-                linesWithTeams
-                |> Seq.map (parseLine parserOptions)
-                |> Result.combine
-                |> Result.bind seasonTable
-        }
-    seasonRating
+    result {
+        
+        let! sheetNode =
+            "60 сек"
+            |> NoEmptyString.ofConstString
+            |> findSheetNode document
+             
+            
+        let! parserOptions = parseOptions sheetNode 
+            
+        let linesWithTeams =
+            sheetNode
+            |> HtmlNode.elements
+            |> List.skip 2
+            |> (Seq.exceptLast >> Seq.exceptLast)
+            |> List.ofSeq
+            
+
+        return! parseSeasonResults linesWithTeams (parseLine parserOptions)
+    }
     
 let parseTotalFrom60SecSite document =
     
@@ -436,7 +508,7 @@ let parseTotalFrom60SecSite document =
         // first one is about Первая лига, the second one is about Высшая лига 
         |> Seq.head
         
-    let options = 
+    let parseOptions tableNodes = 
         
         let optionsLineNode = 
             tableNodes
@@ -446,53 +518,40 @@ let parseTotalFrom60SecSite document =
             |> List.head
             |> HtmlNode.elements
             
-        
-            
-        result {
-            let! teamIdColumn =
-                optionsLineNode |> Seq.tryFindIndex (HtmlNode.innerText >> ((=) "Название"))
-                |> Result.ofOption "Название"
-                |> expectTableColumnNotFoundError
-                
-            let! sumColumn =
-                optionsLineNode |> Seq.tryFindIndex (HtmlNode.innerText >> (String.containsSubstring "Сумма"))
-                |> Result.ofOption "Сумма"
-                |> expectTableColumnNotFoundError
-                
-            return {
-                TeamIdColumn = teamIdColumn
-                TeamNameColumn = teamIdColumn
-                FirstResultColumn = sumColumn |> (+) 1
-                FinalResultColumn = optionsLineNode |> Seq.length |> (+) -1
-            }
-        }
+        parseSeasonTableOptions {TeamId = "Название"; TeamName = "Название"; Sum = "Сумма"; } optionsLineNode
         
     let parseLine options node =
         
         let innerTextOfNode n index = 
-            n 
+            let nodeWithText = 
+                n 
+                |> HtmlNode.elements
+                |> Seq.item index
+            nodeWithText
             |> HtmlNode.elements
-            |> Seq.item index 
+            |> Seq.filter (fun e -> e.Name() <> "sup")
+            |> Seq.head
             |> HtmlNode.innerText
 
         let innerTextOfNode' = innerTextOfNode node
 
-        let tryParseDecimal s = 
-            s 
-            |> String.replace "," "."
-            |> (fun s -> if s <> "" then s |> decimal |> Some else None)
-
         let filterResultNodes elements =
+            let resultIndices  =
+                options.GamedayResultColumns
+                |> List.map fst
+            
             elements
-            |> Seq.skip options.FirstResultColumn
+            |> List.filter (fun (i, _) -> resultIndices |> List.exists ((=) i))
+            
         
-        let res = 
+        let parseResultInfo' = parseResultInfo options
+        
+        let teamResults = 
             node
             |> HtmlNode.elements
+            |> List.indexed
             |> filterResultNodes
-            |> Seq.map (HtmlNode.innerText >> tryParseDecimal)
-            |> Seq.choose id
-            |> Seq.map Converter.pointFromDecimal
+            |> List.map parseResultInfo'
             
         let team() =
             let teamId =
@@ -518,30 +577,17 @@ let parseTotalFrom60SecSite document =
             |> expectTeamParsingError
         
         team() 
-        |> Result.map (fun team -> (team, res))
+        |> Result.map (fun team -> (team, teamResults))
         
-    let total =
+    result {
+        let! options = parseOptions tableNodes
         
-        let buildTotal opt = 
-        
-            let teamLines = 
-                tableNodes
-                |> HtmlNode.elements
-                |> List.tail
-                |> List.head
-                |> HtmlNode.elements
-                
-            let seasonTable data =
-                data
-                |> SeasonTable.ofSeq
-                |> expectSeasonHasNotStartedError
-                
-            teamLines
-            |> Seq.map (parseLine opt)
-            |> Result.combine
-            |> Result.bind seasonTable
+        let teamLines = 
+            tableNodes
+            |> HtmlNode.elements
+            |> List.tail
+            |> List.head
+            |> HtmlNode.elements
             
-        options
-        |> Result.bind buildTotal
-    
-    total
+        return! parseSeasonResults teamLines (parseLine options) 
+    }

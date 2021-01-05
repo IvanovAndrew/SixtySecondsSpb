@@ -117,7 +117,7 @@ module Actions =
 
     module Rating =
         
-        let ofSeq (input : ((Team * _) seq)) =
+        let places teamToRating teams : Map<Team, Place> =
             
             let proc (acc, fromPlace) group =
                 
@@ -137,24 +137,37 @@ module Actions =
                 
                 let newGroup = 
                     group
-                    |> Seq.map (fun (team, rating) -> team, rating, place)
+                    |> Seq.map (fun (team, rating) -> team, place)
                     |> Seq.append acc
                     
                 newGroup, PositiveNum.next place.To
                 
-            input
+            teams
+            |> Seq.map (fun team -> team, teamToRating team)
             |> Seq.groupBy (fun (_, rating) -> rating)
             |> Seq.sortByDescending (fun (key, _) -> key)
             |> Seq.map snd
             |> Seq.fold proc (Seq.empty, PositiveNum.numOne)
             |> fst
-            |> List.ofSeq
+            |> Map.ofSeq
 
+        let createRating teamToRating teams =
+            
+            let teamToPlace = places teamToRating teams
+            
+            teams
+            |> Seq.map (fun team -> team, teamToRating team)
+            |> Seq.sortByDescending snd
+            |> Seq.map (fun (team, rating) -> team, rating, teamToPlace.[team])
+            |> List.ofSeq
+        
         let ofGameDay gameDay : GameDayRating =
+            
+            let teamToRating team = gameDay.Answers.[team] |> Answers.sumRightAnswers
+                
             gameDay
             |> GameDay.teams
-            |> Seq.map (fun team -> team, gameDay.Answers.[team] |> Answers.sumRightAnswers)
-            |> ofSeq
+            |> createRating teamToRating
             
         let ofGameDayWithFilter questions gameDay : GameDayRating = 
             
@@ -167,8 +180,7 @@ module Actions =
 
             gameDay
             |> GameDay.teams
-            |> Seq.map (fun t -> t, answeredOnDifficultQuestions t)
-            |> ofSeq
+            |> createRating answeredOnDifficultQuestions
             
         let leadingTeams topN rating = 
             
@@ -216,13 +228,9 @@ module Actions =
             let rating = 
                 gameDay
                 |> GameDay.teams
-                |> Seq.map (fun team -> team, totalAnswered' team)
-                |> Rating.ofSeq
+                |> Rating.places totalAnswered'
             
-            let (_, _, place) = 
-                rating
-                |> List.find (fun (t, _, _) -> t = team)
-            place
+            rating.[team]
             
         let getPlace gameDay team =
             getPlaceAfterQuestion gameDay team gameDay.PackageSize
@@ -268,7 +276,7 @@ module Actions =
 
         let worstPlace gameDay team =
             
-            let minimumQuestions = 6 |> PositiveNum.ofInt |> Result.valueOrException 
+            let minimumQuestions = 6 |> PositiveNum.ofConst 
             
             let question, place = 
                 team
@@ -293,29 +301,52 @@ module Actions =
             |> Answers.filter Wrong
             |> Seq.map (fun q -> q, q |> Question.rightAnswers gameDay)
             |> Seq.maxBy snd
+        
+    module SeasonResults =
+        
+        let teams seasonResults =
+            seasonResults
+            |> Map.keys
+            
+        let gamesAmount seasonResults =
+            
+            seasonResults
+            |> Map.values
+            |> Seq.map (fun v -> v |> Seq.length)
+            |> Seq.max
+            
             
     module SeasonTable = 
         
-        let ofSeq data = 
+        let ofMap (data : Map<Team, GamedayPoint list>) = 
             
             let create gamesCount = 
                 
-                let table = 
+                let teams = data |> Map.keys
+                let table =
                     
-                    data
-                    |> Seq.map (fun (team, rating) -> team, rating |> Seq.sum)
-                    |> Rating.ofSeq
-                
+                    let teamToRating team =
+                        data.[team]
+                        |> Seq.sumBy (fun gd -> match gd.Point with Played v -> v | _ -> 0m<Point>)
+                    
+                    let teamPlaces =
+                        teams
+                        |> Rating.places teamToRating
+                    
+                    teams
+                    |> Seq.map (fun team -> team, teamToRating team, teamPlaces.[team])
+                    |> Seq.sortBy (fun (_, _, place) -> place)
+                    |> List.ofSeq
+                    
                 {
                     Table = table 
-                    Results = data |> Map.ofSeq
+                    Results = data
                     GamesCount = gamesCount
                 }
                 
             let gamesCount d =
                 d
-                |> Seq.map (snd >> Seq.length)
-                |> Seq.max
+                |> SeasonResults.gamesAmount
                 |> PositiveNum.ofInt
 
             data
@@ -323,23 +354,45 @@ module Actions =
             |> Result.map create
 
 
-        let topNResult (resultsToCount : PositiveNum) seasonTable : SeasonRating = 
+        let topNResult (options : SeasonResultFilter) (seasonResults : SeasonResults) : SeasonRating = 
                 
-            let topResults allResults =
+            let topResults teamResults =
                 
-                let gamesToCount =
-                    let playedGames = allResults |> Seq.length 
-                    min playedGames resultsToCount.Value 
+                let resultsToCount =
+                    match options.RatingOption, options.FinalDate with
+                    | FinalGameCounts, _ 
+                    | FinalGameDoesntCount, NotPlayedYet -> teamResults
+                    
+                    | FinalGameDoesntCount, AlreadyPlayed finalGameDate ->
+                        
+                        teamResults |> List.filter (fun res -> res.Date <> finalGameDate)
+                        
+                let gamesToCount = min options.GamesToCount.Value (resultsToCount |> List.length)
+                    
+                 
+
+                resultsToCount
+                |> List.map (fun gd -> match gd.Point with Played r -> r | _ -> 0m<Point>)
+                |> List.sortByDescending id
+                |> List.take gamesToCount
+                |> List.sum
                 
-                allResults
-                |> Seq.sortByDescending id 
-                |> Seq.take gamesToCount
-                |> Seq.sum
+            let teamToTopResults team =
+                seasonResults.[team]
+                |> topResults
+                
             
-            seasonTable.Results
-            |> Map.toSeq
-            |> Seq.map (fun (team, results) -> team, topResults results)
-            |> Rating.ofSeq
+            let teamToPlace = 
+                seasonResults
+                |> SeasonResults.teams
+                |> Rating.places teamToTopResults
+                
+            seasonResults
+            |> SeasonResults.teams
+            |> List.map (fun team -> team, teamToTopResults team, teamToPlace.[team])
+            |> List.sortByDescending (fun (_, rating, _) -> rating)
+            |> List.ofSeq
+            
             
     module Playoff =
         

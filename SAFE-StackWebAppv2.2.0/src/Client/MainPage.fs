@@ -40,8 +40,8 @@ type Message =
     | ButtonPressed
     | GameLoaded of GameDayModel
     | GameNotLoaded of string
-    | SeasonTableLoaded of SeasonTableModel
-    | SeasonTableNotLoaded of string
+    | SeasonResultLoaded of SeasonResultModel
+    | SeasonResultNotLoaded of string
     | SeasonInfoMessage of SeasonInfoPage.Message
     | GameDayInfoMessage of GameDayPage.Message
 
@@ -72,10 +72,10 @@ let update message state =
             | Season s ->
                 let ofSuccess res =
                     match res with
-                    | Ok value -> SeasonTableLoaded value
-                    | Error str -> SeasonTableNotLoaded str
+                    | Ok value -> SeasonResultLoaded value
+                    | Error str -> SeasonResultNotLoaded str
 
-                let ofError exn = SeasonTableNotLoaded <| string exn
+                let ofError exn = SeasonResultNotLoaded <| string exn
 
                 state, Cmd.OfAsync.either sixtySecondsApi.parseSeasonRating s ofSuccess ofError
 
@@ -89,8 +89,11 @@ let update message state =
         | None -> state, Cmd.none
     | GameLoaded gd, _ -> {state with Page = GameInfoPage <| GameDayPage.init gd }, Cmd.none
     | GameNotLoaded e, _ -> {state with Status = Error e}, Cmd.none
-    | SeasonTableLoaded st, _ -> {state with Page = SeasonInfoPage <| SeasonInfoPage.init st}, Cmd.none
-    | SeasonTableNotLoaded e, _ -> {state with Status = Error e}, Cmd.none
+    | SeasonResultLoaded st, _ ->
+        let updatedState, nextCmd = SeasonInfoPage.init st
+        {state with Page = SeasonInfoPage updatedState}, nextCmd |> Cmd.map SeasonInfoMessage
+    
+    | SeasonResultNotLoaded e, _ -> {state with Status = Error e}, Cmd.none
 
     | SeasonInfoMessage message, SeasonInfoPage page ->
 

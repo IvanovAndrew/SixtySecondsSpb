@@ -63,11 +63,11 @@ let showPointsQuestionByQuestion gameDay teams =
 
     showGraphic rightAnswers teams gameDay verticalAxis
     
-let showTotalTable data topN = 
+let showTotalTable options data = 
         
     let topNResultTable = 
         data
-        |> SeasonTable.topNResult topN
+        |> SeasonTable.topNResult options
 
     let columns = 
             
@@ -75,14 +75,23 @@ let showTotalTable data topN =
             table 
             |> Seq.map (fun (team, points, _) -> team.Name.Value, points)
 
-        [topNResultTable; data.Table]
+        // TODO fix
+        [topNResultTable; ]
         |> Seq.map toColumnFormat
+        
+    let optionsString =
+        match options.RatingOption, options.FinalDate with
+        | FinalGameCounts, _ 
+        | FinalGameDoesntCount, NotPlayedYet -> sprintf "Best %d games" options.GamesToCount.Value
+        | FinalGameDoesntCount, AlreadyPlayed d -> sprintf "Best %d games (without final %A)" options.GamesToCount.Value d
+        
+    let gamesAmount = data |> SeasonResults.gamesAmount
         
     let labels = 
         [
             "Team"; 
-            (sprintf "Best %d games" topN.Value); 
-            (sprintf "All %d games" data.GamesCount.Value); 
+            optionsString; 
+            (sprintf "All %d games" gamesAmount); 
         ]
 
     GoogleChart.showData columns labels ChartType.Table

@@ -73,18 +73,18 @@ module Result =
             else
                 let head, tail = Seq.head results, Seq.tail results
                 
-                match head with
-                | Error e -> Error e
-                | Ok ok -> 
-                    let newAcc = acc |> Result.map (fun oks -> ok |> Seq.singleton |> Seq.append oks)
-                    loop newAcc tail
+                head
+                |> Result.bind (fun ok ->
+                        let newAcc = acc |> Result.map (fun oks -> ok |> Seq.singleton |> Seq.append oks)
+                        loop newAcc tail)
+                    
         results
         |> loop (Ok Seq.empty)
     
 module String  = 
     open System
     
-    let isEmpty (s : string) =  System.String.IsNullOrEmpty s || System.String.IsNullOrWhiteSpace s
+    let isEmpty (s : string) =  String.IsNullOrEmpty s || String.IsNullOrWhiteSpace s
     
     let splitByChar sep (str : string) = str.Split(sep)
     let splitByCharWithCount (sep : char array) (count : int) (str : string) =
@@ -202,6 +202,11 @@ module Seq =
                 imp newAcc tail
             
         imp Seq.empty seq
+    
+module Map =
+    
+    let keys map = map |> Map.toList |> List.map fst
+    let values map = map |> Map.toList |> List.map snd
     
 let bindAsync f a =
         async {

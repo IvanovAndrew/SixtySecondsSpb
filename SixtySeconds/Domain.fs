@@ -1,5 +1,7 @@
 namespace SixtySeconds
 
+open System
+
 module Domain = 
 
     open SixtySeconds.Common.CommonTypes
@@ -150,6 +152,22 @@ module Domain =
             League : LeagueName
             Season : SeasonName
         }
+        
+    type FinalDate =
+        | NotPlayedYet
+        | AlreadyPlayed of DateTime
+        
+    type RatingOption =
+        | FinalGameDoesntCount
+        | FinalGameCounts 
+        
+    type SeasonResultFilter =
+        {
+            GamesToCount : PositiveNum
+            FinalDate : FinalDate
+            RatingOption : RatingOption
+        }
+        
 
     type GameDay = 
         {
@@ -162,16 +180,28 @@ module Domain =
     type RatingType =
         | All
         | Threshold of int<RightAnswer>
+    
+    type GamedayPointWithAttendance =
+        | Missed
+        | Played of decimal<Point>
+    
+    type GamedayPoint =
+        {
+            Date : DateTime
+            Point : GamedayPointWithAttendance 
+        }
+    
+    type RatingPoints = GamedayPoint list    
         
     type TeamRatingPosition<'a> = Team * 'a * Place
     type GameDayRating = TeamRatingPosition<int<RightAnswer>> list
     type SeasonRating = TeamRatingPosition<decimal<Point>> list
-            
-    type RatingPoints = decimal<Point> seq
-                
+    
+    type SeasonResults = Map<Team, RatingPoints>
+    
     type SeasonTable = 
         {
-            Results : Map<Team, RatingPoints>
+            Results : SeasonResults
             Table : SeasonRating
             GamesCount : PositiveNum
         }

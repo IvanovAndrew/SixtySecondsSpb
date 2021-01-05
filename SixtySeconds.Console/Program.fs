@@ -2,6 +2,7 @@
 open Config
 
 
+open SixtySeconds
 open SixtySeconds.Common.CommonTypes
 
 open SixtySeconds.Common.Errors
@@ -13,6 +14,7 @@ open SixtySeconds.Domain
 open SixtySeconds.Actions
 open SixtySeconds.SixtySecondsProgramBuilder
 open Shared.Models
+open Shared.Utils
 
 
 type WriteMode = 
@@ -29,7 +31,7 @@ type CommandLineOption =
         TeamId : PositiveNum
         WriteMode : WriteMode
         TeamChart : TeamChartMode option
-        Total : PositiveNum option
+        Total : SeasonResultFilter option
     }
 
 let rec parseCommandLine argv optionsSoFar = 
@@ -66,13 +68,22 @@ let rec parseCommandLine argv optionsSoFar =
             |> Result.bind (fun teams -> parseCommandLine tail <| Ok {options with TeamChart = teams |> Show |> Some})
             
 
-        | "-total" :: games :: tail -> 
+        | "-total" :: games :: opt :: finalDate :: tail -> 
             
             let totalGamesResult = games |> PositiveNum.ofString
-            match totalGamesResult with 
-            | Error e -> Error e
-            | Ok r -> 
-                parseCommandLine tail <| Ok {options with Total = r |> Some}
+            let ratingOptions = 
+                match opt with
+                | "--withfinalGame" -> Domain.FinalGameCounts
+                | _ -> Domain.FinalGameDoesntCount
+                
+            let finalDate =
+                match finalDate |> parseDate with
+                | Ok date -> FinalDate.AlreadyPlayed date
+                | _ -> FinalDate.NotPlayedYet
+            
+            totalGamesResult
+            |> Result.bind (fun games -> 
+                parseCommandLine tail <| Ok {options with Total = Some {GamesToCount = games; FinalDate = finalDate; RatingOption = ratingOptions}})
             
 
         | x::xs -> Error <| sprintf "Option '%s' is unrecognized" x
@@ -122,8 +133,10 @@ let processGameDay options gameDay =
                     |> Seq.append (gameDay |> Rating.ofGameDay |> Rating.leadingTeams topN)
                     |> Seq.distinct
 
-                showPlacesQuestionByQuestion gameDay teams
-                showPointsQuestionByQuestion gameDay teams
+                async {
+                    do! showPlacesQuestionByQuestion gameDay teams
+                    do! showPointsQuestionByQuestion gameDay teams
+                }
 
         options.TeamChart
         |> Option.iter (fun c -> c |> showTeamChart |> Async.RunSynchronously)
@@ -188,7 +201,7 @@ let main argv =
     
     let seasonTableResult = 
         match options.Total with
-        | Some gamesToCount -> 
+        | Some ratingOptions -> 
             
             async {
                 let! document =
@@ -204,8 +217,8 @@ let main argv =
                 return 
                     document
                     |> expectWebRequestError
-                    |> Result.bind (fun v -> v |> Parser.parseTotalFromGoogleSpreadsheet |> expectParsingError)  
-                    |> Result.map (fun seasonTable -> showTotalTable seasonTable gamesToCount |> Async.RunSynchronously)
+                    |> Result.bind (fun v -> v |> Parser.parseTotalFromGoogleSpreadsheet |> expectParsingError)
+                    |> Result.map (fun seasonTable -> showTotalTable ratingOptions seasonTable |> Async.RunSynchronously)
             } |> Async.RunSynchronously
             
         | None -> Ok()

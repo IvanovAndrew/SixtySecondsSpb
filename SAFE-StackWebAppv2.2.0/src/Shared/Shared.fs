@@ -1,5 +1,6 @@
 namespace Shared
 
+open System
 open Models
 open Shared
 
@@ -102,10 +103,27 @@ type ShowChartsInput =
 type ChartType =
     | Answers of ShowChartsInput
     | Places of ShowChartsInput
+    
+module SeasonResult =
+    
+    let gamesAmount seasonResultModel =
+        seasonResultModel
+        |> Map.toList
+        |> List.map (snd >> List.length)
+        |> List.max
+        
+    let gameDates seasonResultModel =
+        seasonResultModel
+        |> Map.toList
+        |> List.map snd
+        |> List.collect(fun results -> results |> List.map (fun res -> res.Date))
+        |> List.distinct
+        |> List.sort
+        
 
 module Rating =
 
-    let ofSeq (input : ((TeamModel * _) seq)) =
+    let teamPlaces teamToRating teams : Map<TeamModel, PlaceModel> =
 
         let proc (acc, fromPlace) group =
 
@@ -122,43 +140,36 @@ module Rating =
 
             let newGroup =
                 group
-                |> Seq.map (fun (team, rating) -> team, rating, place)
+                |> Seq.map (fun (team, rating) -> team, place)
                 |> Seq.append acc
 
             newGroup, place.To + 1
 
-        input
+        teams
+        |> Seq.map (fun team -> team, teamToRating team)
         |> Seq.groupBy (fun (_, rating) -> rating)
         |> Seq.sortByDescending (fun (key, _) -> key)
         |> Seq.map snd
         |> Seq.fold proc (Seq.empty, 1)
         |> fst
-        |> List.ofSeq
+        |> Map.ofSeq
 
     let ofGameDay gameDay : GameDayRating =
+        
+        // TODO memoize
+        let teamToRating team = gameDay.Answers.[team] |> Seq.filter (fun a -> a.Answer) |> Seq.length
+        let teamToPlace = 
+            gameDay
+            |> GameDay.teams
+            |> teamPlaces teamToRating
+        
         gameDay
         |> GameDay.teams
-        |> Seq.map (fun team -> team, gameDay.Answers.[team] |> Seq.filter (fun a -> a.Answer) |> Seq.length )
-        |> ofSeq
+        |> Seq.map (fun team -> team, teamToRating team, teamToPlace.[team])
+        |> Seq.sortByDescending (fun (_, rating, _) -> rating)
+        |> List.ofSeq
 
-    let topNResult (resultsToCount : int) (seasonTable : SeasonTableModel) : SeasonRating =
-
-            let topResults allResults =
-
-                let gamesToCount =
-                    let playedGames = allResults |> Seq.length
-                    min playedGames resultsToCount
-
-                allResults
-                |> Seq.sortByDescending id
-                |> Seq.take gamesToCount
-                |> Seq.sum
-
-            seasonTable.Results
-            |> Map.toSeq
-            |> Seq.map (fun (team, results) -> team, topResults results)
-            |> ofSeq
-
+    
 //    let ofGameDayWithFilter questions gameDay : GameDayRating =
 //
 //        let answeredOnDifficultQuestions team =
@@ -178,11 +189,6 @@ module Rating =
         rating
         |> Seq.takeWhile (fun (_, _, place) -> place.From <= topN)
         |> Seq.map (fun (team, _, _) -> team)
-
-    ///
-    let getWinnerTeam rating = leadingTeams 1 rating
-
-
 
 
 module Team =
@@ -251,16 +257,11 @@ module Team =
 
         let totalAnswered' = totalAnswered gameDay questionNumber
 
-        let rating =
-            gameDay
-            |> GameDay.teams
-            |> Seq.map (fun team -> team, totalAnswered' team)
-            |> Rating.ofSeq
+        gameDay
+        |> GameDay.teams
+        |> Rating.teamPlaces totalAnswered'
+        |> Map.find team
 
-        let (_, _, place) =
-            rating
-            |> List.find (fun (t, _, _) -> t = team)
-        place
 
     let getPlace gameDay team =
         getPlaceAfterQuestion gameDay team gameDay.PackageSize
@@ -332,3 +333,28 @@ module Team =
         |> Seq.filter (fun aq -> not aq.Answer)
         |> Seq.map (fun q -> q, q.Number |> rightAnswers gameDay)
         |> Seq.maxBy snd
+        
+module Utils =
+    
+    let parseDate (str : string) =
+        match str.Split('.', StringSplitOptions.None) with
+        | [| day; month; year |] ->
+            
+            let tryParseInt (s : string) =
+                match Int32.TryParse(s) with
+                | (true, value) -> Ok value
+                | _ -> Error <| sprintf "Couldn't parse %s as int" s
+              
+            let date = tryParseInt day
+            let month = tryParseInt month
+            let year = tryParseInt year
+            
+            match date, month, year with
+            | Ok d, Ok m, Ok y -> Ok <| DateTime((if y < 100 then 2000 + y else y), m, d)
+            | _ -> Error <| sprintf "Couldn't parse %s as date" str
+        | _ -> Error <| sprintf "Couldn't parse %s as date" str
+        
+    let tryParseDateTime (str : string) =
+        match DateTime.TryParse(str) with
+        | true, date -> Some date
+        | false, _ -> None

@@ -1,4 +1,4 @@
-﻿namespace SixtySeconds.Data
+namespace SixtySeconds.Data
 
 open FSharp.Data
 
@@ -13,8 +13,8 @@ module SixtySecondsDataPipeline =
     
     type ParseGameDayAsync = Url -> GameName -> AsyncResult<GameDay, SixtySecondsError>
     type GameDayRatingAsync = GameDay -> Async<GameDayRating>
-    type ParseSeasonRating = Url -> AsyncResult<SeasonTable, SixtySecondsError>
-    type TopNResultsTable = SeasonTable -> PositiveNum -> Async<SeasonRating>
+    type ParseSeasonRating = Url -> AsyncResult<SeasonResults, SixtySecondsError>
+    type TopNResultsTable = SeasonResultFilter -> SeasonResults -> Async<SeasonRating>
     
     
     
@@ -152,8 +152,8 @@ module SixtySecondsDataPipeline =
                 
                 let parse =
                     match url with
-                    | Sec60Season -> Parser.parseTotalFrom60SecSite
-                    | Google -> Parser.parseTotalFromGoogleSpreadsheet
+                    | Sec60Season -> parseTotalFrom60SecSite
+                    | Google -> parseTotalFromGoogleSpreadsheet
                     | _ -> (fun _ -> url |> Url.value |> UnexpectedSite |> Error)
                 
                 return
@@ -163,7 +163,7 @@ module SixtySecondsDataPipeline =
             }
             
     let topNResultsTable : TopNResultsTable =
-        fun seasonTable gamesToCount ->
+        fun options seasonTable  ->
             async {
-                    return seasonTable |> SeasonTable.topNResult gamesToCount
+                    return seasonTable |> SeasonTable.topNResult options 
             }

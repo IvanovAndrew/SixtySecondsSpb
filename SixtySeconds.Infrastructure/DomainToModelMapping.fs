@@ -38,7 +38,16 @@ module Models =
         |> Answers.toList
         |> List.map answerOnQuestionToModel
         
-    
+    let ratingPoints f =
+        match f.Point with 
+        | Missed -> 0m
+        | Played p -> decimal p
+        
+    let gamePointsToModel (g : GamedayPoint) =
+        {
+            Date = g.Date
+            Points = match g.Point with Played p -> decimal p | Missed -> 0m
+        }
         
     let gameDayToModel (gameDay : GameDay) : GameDayModel =
         {
@@ -48,9 +57,16 @@ module Models =
             PackageSize = gameDay.PackageSize.Value
         }
         
+    let seasonResultToModel (seasonResult : SeasonResults) : SeasonResultModel =
+        
+        seasonResult
+        |> Map.toSeq
+        |> Seq.map (fun (team, results) -> teamToModel team, results |> List.map gamePointsToModel)
+        |> Map.ofSeq
+        
     let seasonTableToModel (seasonTable : SeasonTable) : SeasonTableModel =
         {
-            Results = seasonTable.Results |> Map.toSeq |> Seq.map (fun (team, results) -> teamToModel team, results |> Seq.map decimal) |> Map.ofSeq
+            Results = seasonResultToModel seasonTable.Results 
             Table = seasonTable.Table |> Seq.map (fun (team, point, place) -> teamToModel team, decimal point, placeToModel place) |> List.ofSeq
             GamesCount = seasonTable.GamesCount.Value
         }

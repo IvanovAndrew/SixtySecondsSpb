@@ -1,11 +1,11 @@
-﻿namespace TestUtils
+namespace TestUtils
 
+open System
 open SixtySeconds.Common.CommonTypes
 open SixtySeconds.Domain
 
 module Utils =
     
-    open Utils
     let toPositiveNum = PositiveNum.ofInt >> Result.valueOrException
     let toNoEmptyString = NoEmptyString.ofString >> Result.valueOrException
 
@@ -150,7 +150,8 @@ module FsCheckUtils =
                 
                 let allAnswers = 
                     answerGenerator packageSize
-                    |> Gen.sample teamsCount |> List.ofArray
+                    |> Gen.sample teamsCount 
+                    |> List.ofArray
                 
                 return {
                     Tournament =
@@ -159,7 +160,7 @@ module FsCheckUtils =
                             League = "Test league" |> NoEmptyString.ofConstString
                             Season = "Pilot season" |> NoEmptyString.ofConstString
                         }
-                    Name = System.DateTime.Now.ToString() |> toNoEmptyString
+                    Name = DateTime.Now.ToString() |> toNoEmptyString
                     Answers =
                         allAnswers
                         |> List.zip teams
@@ -181,10 +182,53 @@ module FsCheckUtils =
                      |> Array.head
                 
                 let teamsWithRating =
-                        teamGenerator
-                        |> Gen.map (fun t -> t, rating())
-                        |> Gen.sample teamsCount
-                        |> List.ofArray
+                    teamGenerator
+                    |> Gen.map (fun t -> t, rating())
+                    |> Gen.sample teamsCount
+                    |> List.ofArray
                         
                 return teamsWithRating
             } |> Arb.fromGen
+            
+        
+            
+    type SeasonResults =
+        
+        static member SeasonResultGenerator =
+            
+            gen {
+                let! teamsCount = Gen.choose (1, 40)
+                let! gamesCount = Gen.choose (2, 20)
+                
+                let dates =
+                    let now = DateTime.Now
+                    (fun i -> -i |> float)
+                    |> List.init gamesCount
+                    |> List.map (fun i -> now.AddDays(i))
+                    |> List.sort
+                    
+                let rating() =
+                     Gen.choose (0, 40)
+                     |> Gen.map (decimal >> ((*)1m<Point>))
+                     |> Gen.sample 1
+                     |> Array.head
+                     
+                let gameDayResultGen dates =
+                    
+                    let generateRating date = 
+                        match rating() with
+                        | v when v > 0m<Point> -> {Date = date; Point = Played v}
+                        | _ -> { Date = date; Point = Missed }
+                    
+                    (fun i -> dates |> List.item i |> generateRating)
+                    |> List.init gamesCount
+                    
+                let teamWithRating = 
+                    teamGenerator
+                    |> Gen.map (fun team -> team, gameDayResultGen dates)
+                    |> Gen.sample teamsCount
+                    |> Map.ofArray
+                     
+                return teamWithRating
+            }
+            |> Arb.fromGen

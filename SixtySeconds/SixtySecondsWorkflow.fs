@@ -14,6 +14,11 @@ module SixtySecondsWorkflow =
             return! parseSeasonRating url
         }
         
+    let filterSeasonResults (options, results) =
+        simpleProgram {
+            return! topNResult options results
+        }
+        
     let parseGameDay (url, gameName) =
         simpleProgram{
             return! parseGameDay url gameName 
