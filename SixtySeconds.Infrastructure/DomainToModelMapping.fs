@@ -1,10 +1,13 @@
 namespace SixtySeconds.Infrastructure
 
-module Models =
+open Shared
+open Shared.Models
+
+module DomainToModelMapping =
     
     open SixtySeconds.Common.CommonTypes
     open SixtySeconds.Domain
-    open Shared.Models
+    
     
     let teamToModel (team : Team) : TeamModel =
         {
@@ -16,6 +19,12 @@ module Models =
         {
             From = place.From.Value
             To = place.To.Value
+        }
+        
+    let placeInfoToModel (placeInfo : PlaceInfo) : PlaceInfoModel =
+        {
+            Place = placeToModel placeInfo.Place
+            Question = placeInfo.Question.Value
         }
         
     let tournamentToModel (tournament : Tournament) : TournamentModel =
@@ -31,7 +40,15 @@ module Models =
             Answer = answerOnQuestion.Answer |> Answer.isRight
         }
         
-    
+    let strikeToModel (strike : StrikeInfo) : Shared.StrikeInfo =
+        
+        {
+            Type =
+                match strike.Type with
+                | StrikeType.Best -> Shared.StrikeType.Best
+                | StrikeType.Worst -> Shared.StrikeType.Worst
+            Count = strike.Count |> Option.map (fun v -> v.Value)
+        }
         
     let answersToModel (answers: Answers) : AnswersModel =
         answers
@@ -69,4 +86,18 @@ module Models =
             Results = seasonResultToModel seasonTable.Results 
             Table = seasonTable.Table |> Seq.map (fun (team, point, place) -> teamToModel team, decimal point, placeToModel place) |> List.ofSeq
             GamesCount = seasonTable.GamesCount.Value
+        }
+        
+    let teamPerformanceToModel (teamPerformance : TeamPerformance) : TeamPerformanceModel =
+        
+        {
+            Team = teamPerformance.Team |> teamToModel
+            BestPlace = teamPerformance.BestPlace |> placeInfoToModel
+            WorstPlace = teamPerformance.WorstPlace |> placeInfoToModel
+            BestStrike = teamPerformance.BestStrike |> strikeToModel 
+            WorstStrike = teamPerformance.WorstStrike |> strikeToModel
+            DifficultAnsweredQuestion = teamPerformance.DifficultAnsweredQuestion.Value
+            DifficultAnsweredQuestionCount = teamPerformance.DifficultAnsweredQuestionCount
+            SimplestWrongAnsweredQuestion = teamPerformance.SimplestWrongAnsweredQuestion.Value
+            SimplestWrongAnsweredQuestionCount = teamPerformance.SimplestWrongAnsweredQuestionCount
         }

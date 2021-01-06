@@ -6,36 +6,28 @@ open Fable.React
 open Fable.React.Props
 open Fulma
 
+open Client.ServerApi
 open Shared
 open Shared.Models
 
 type TeamPerformanceState =
     {
         GameDay : GameDayModel
-        TeamPerformance : TeamPerformance
+        TeamPerformance : TeamPerformanceModel
     }
-
-let calculateTeamPerformance gameDay team : TeamPerformance =
-    {
-        Team = team
-        BestPlace = Team.bestPlace gameDay team
-        WorstPlace = Team.worstPlace gameDay team
-        BestStrike = Team.bestStrike gameDay team
-        WorstStrike = Team.worstStrike gameDay team
-        DifficultAnsweredQuestion = Team.difficultAnswered gameDay team |> fst |> (fun aq -> aq.Number)
-        DifficultAnsweredQuestionCount = Team.difficultAnswered gameDay team |> snd
-        SimplestWrongAnsweredQuestion = Team.simplestWrongAnswered gameDay team |> fst |> (fun aq -> aq.Number)
-        SimplestWrongAnsweredQuestionCount = Team.simplestWrongAnswered gameDay team |> snd
-    }
+    
+type Message =
+    | TeamChanged of int
+    | CalculateTeamPerformance
+    | TeamPerformanceCalculated of TeamPerformanceModel
+    | TeamPerformanceFailed of string
 
 let init gameday team =
     {
         GameDay = gameday
-        TeamPerformance = calculateTeamPerformance gameday team
-    }, Cmd.none
-
-type Message =
-    | TeamChanged of int
+        TeamPerformance = TeamPerformanceModel.defaultTeamPerformanceModel team
+            
+    }, CalculateTeamPerformance |> Cmd.ofMsg 
 
 let update message state =
     match message with
@@ -44,7 +36,22 @@ let update message state =
             state.GameDay
             |> GameDay.teams
             |> Seq.find (fun t -> t.Id = newTeamId)
-        {state with TeamPerformance = calculateTeamPerformance state.GameDay newTeam}, Cmd.none
+        {state with TeamPerformance = { state.TeamPerformance with Team = newTeam}}, Cmd.ofMsg CalculateTeamPerformance
+        
+    | CalculateTeamPerformance ->
+        
+        let ofSuccess = function
+            | Ok teamPerformance -> TeamPerformanceCalculated teamPerformance
+            | Error str -> TeamPerformanceFailed str
+            
+            
+        state, Cmd.OfAsync.perform sixtySecondsApi.teamPerformance (state.GameDay, state.TeamPerformance.Team) ofSuccess
+        
+    | TeamPerformanceCalculated m ->
+        
+        {state with TeamPerformance = m}, Cmd.none
+        
+    | TeamPerformanceFailed err -> failwith err 
 
 
 

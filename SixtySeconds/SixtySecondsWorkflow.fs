@@ -80,7 +80,7 @@ module SixtySecondsWorkflow =
             return team |> Team.simplestWrongAnswered gameDay |> snd |> Converter.toInt
         }
         
-    let teamPerformance (team, gameDay) =
+    let teamPerformance (gameDay, team) =
         
         simpleProgram {
             let! bestPlace = teamBestPlace (team, gameDay)

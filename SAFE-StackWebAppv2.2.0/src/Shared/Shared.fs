@@ -23,19 +23,11 @@ type StrikeInfo =
          //   To : QuestionNumber
             Count : int option
         }
-        static member Default strikeType = {Type = strikeType; Count = None}
-        static member Increase strike =
-            {
-                strike with
-                    Count =
-                        strike.Count
-                        |> Option.map (fun i -> i+1)
-                        |> Option.orElse (Some 1)
-            }
+        
 
 //type PlaceInfo = {Place : Place; Question : int}
 
-type TeamPerformance =
+type TeamPerformanceModel =
     {
         Team : TeamModel
         BestPlace : PlaceInfoModel
@@ -54,6 +46,20 @@ type SeasonTable =
         Table : SeasonRating
         GamesCount : int
     }
+    
+module TeamPerformanceModel =
+    let defaultTeamPerformanceModel team =
+        {
+            Team = team
+            BestPlace = {Place = {From = 1; To = 1}; Question = 1}
+            WorstPlace = {Place = {From = 1; To = 1}; Question = 1}
+            BestStrike = { Type = StrikeType.Best; Count = None }
+            WorstStrike = { Type = StrikeType.Worst; Count = None }
+            DifficultAnsweredQuestion = -1
+            DifficultAnsweredQuestionCount = -1
+            SimplestWrongAnsweredQuestion = -1
+            SimplestWrongAnsweredQuestionCount = -1
+        }
 
 module Place =
 
@@ -189,150 +195,6 @@ module Rating =
         rating
         |> Seq.takeWhile (fun (_, _, place) -> place.From <= topN)
         |> Seq.map (fun (team, _, _) -> team)
-
-
-module Team =
-
-    let private findStrike strikeType answers =
-
-        let defaultStrike = StrikeInfo.Default strikeType
-        let findBestStrike current best =
-            match current.Count, best.Count with
-            | (Some c, Some b) when c > b -> current
-            | (Some c, Some b) -> best
-            | None, Some _ -> best
-            | Some _, None -> current
-            | _ -> best
-
-        let f =
-            fun (current, bestStrike) answer ->
-                match strikeType, answer with
-                | Best, true
-                | Worst, false ->
-                    let newCurrent = StrikeInfo.Increase current
-                    newCurrent, findBestStrike newCurrent bestStrike
-                | _ -> defaultStrike, bestStrike
-
-        let strike =
-            answers
-            |> Seq.map (fun answerOnQuestion -> answerOnQuestion.Answer)
-            |> Seq.fold f (defaultStrike, defaultStrike)
-            |> snd
-
-        strike
-
-    let private rightAnswers gameDay question =
-        gameDay
-        |> GameDay.answers
-        |> Seq.map (fun aqa -> aqa |> Seq.find (fun aq -> aq.Number = question))
-        |> Seq.sumBy (fun aq -> if aq.Answer then 1 else 0)
-
-    /// Did team A give right answer question Q
-    let getAnswer gameDay questionNumber team =
-
-        gameDay.Answers
-        |> Map.find team
-        |> Seq.find (fun aq -> aq.Number = questionNumber)
-
-    let bestStrike gameDay team =
-        gameDay.Answers
-        |> Map.find team
-        |> findStrike Best
-
-    let worstStrike gameDay team =
-
-        gameDay.Answers
-        |> Map.find team
-        |> findStrike Worst
-
-    let totalAnswered gameDay (questionNumber : int) team  =
-
-        gameDay.Answers
-        |> Map.find team
-        |> Seq.where (fun aq -> aq.Number <= questionNumber)
-        |> Seq.sumBy (fun aq -> if aq.Answer then 1 else 0)
-
-    /// Team position after question Q
-    let getPlaceAfterQuestion gameDay team questionNumber =
-
-        let totalAnswered' = totalAnswered gameDay questionNumber
-
-        gameDay
-        |> GameDay.teams
-        |> Rating.teamPlaces totalAnswered'
-        |> Map.find team
-
-
-    let getPlace gameDay team =
-        getPlaceAfterQuestion gameDay team gameDay.PackageSize
-
-    /// Отставание команды A от лидера по состоянию на вопрос Q
-    let getGapFromTheFirstPlace gameDay team questionNumber =
-
-        // get rating
-        // find team
-        // find leader
-
-        let totalAnswered' = totalAnswered gameDay questionNumber
-        let teamAnsweredOn = totalAnswered' team
-
-        let leaderAnsweredOn =
-            gameDay
-            |> GameDay.teams
-            |> Seq.map totalAnswered'
-            |> Seq.max
-
-        teamAnsweredOn - leaderAnsweredOn
-
-    let private teamPlaces gameDay team =
-
-        let getPlaceAfterQuestion' = getPlaceAfterQuestion gameDay team
-
-        gameDay
-        |> GameDay.allQuestions
-        |> Seq.map (fun q -> q, getPlaceAfterQuestion' q)
-
-
-    let bestPlace gameDay team =
-
-        let minimumQuestions = if gameDay.PackageSize > 12 then 6 else gameDay.PackageSize / 2
-
-        let question, place =
-            team
-            |> teamPlaces gameDay
-            |> Seq.filter (fun (q, _) -> q >= minimumQuestions)
-            |> Seq.minBy snd
-
-        {Place = place; Question = question}
-
-    // TODO almost duplicate bestPlace function 
-    let worstPlace gameDay team =
-
-        let minimumQuestions = if gameDay.PackageSize > 12 then 6 else gameDay.PackageSize / 2 
-
-        let question, place =
-            team
-            |> teamPlaces gameDay
-            |> Seq.filter (fun (q, _) -> q >= minimumQuestions)
-            |> Seq.maxBy snd
-
-        {Place = place; Question = question}
-
-    let difficultAnswered gameDay team =
-
-        gameDay.Answers
-        |> Map.find team
-        |> Seq.filter (fun aq -> aq.Answer)
-        |> Seq.map (fun aq -> aq, aq.Number |> rightAnswers gameDay)
-        |> Seq.minBy snd
-
-    let simplestWrongAnswered gameDay team =
-
-        gameDay.Answers
-        |> Map.find team
-        |> Seq.filter (fun aq -> not aq.Answer)
-        |> Seq.map (fun q -> q, q.Number |> rightAnswers gameDay)
-        |> Seq.maxBy snd
         
 module Utils =
     

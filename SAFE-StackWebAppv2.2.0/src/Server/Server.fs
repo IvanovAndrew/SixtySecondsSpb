@@ -14,6 +14,7 @@ open SixtySeconds.Infrastructure
 let sixtySecondsApi =
     {
         parseGameDay = fun url -> SixtySecondsApi.parseGameDay (url |> Url.create |> Result.valueOrException, NoEmptyString.ofConstString "13.10.2020")
+        teamPerformance = fun (gameDay, team) -> SixtySecondsApi.teamPerformance (gameDay, team)
         parseSeasonRating = fun url -> SixtySecondsApi.parseTotal (url |> Url.create |> Result.valueOrException)
         filterRating = fun (options, seasonResult) -> SixtySecondsApi.filterTotalTable (options, seasonResult)
         writeToSpreadsheet = fun (props, gameDay, team) -> SixtySecondsApi.writeToSpreadsheet (props, gameDay, team)

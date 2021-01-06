@@ -9,6 +9,7 @@ module Route =
 type ISixtySecondsApi =
     {
         parseGameDay : string -> Async<Result<GameDayModel, string>>
+        teamPerformance : GameDayModel * TeamModel -> Async<Result<TeamPerformanceModel, string>>
         parseSeasonRating : string -> Async<Result<SeasonResultModel, string>>
         filterRating : RatingFilterModel * SeasonResultModel -> Async<Result<(TeamModel * decimal * PlaceModel) list, string>>
         writeToSpreadsheet: (SpreadsheetOptions * GameDayModel * TeamModel) -> Async<Result<unit, string>>

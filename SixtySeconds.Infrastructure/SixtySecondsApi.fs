@@ -14,27 +14,36 @@ module SixtySecondsApi =
             let! res = result
             return res |> Result.mapError SixtySeconds.Common.ErrorMessages.errorToString
         }
+        
+    let toDto f result =
+        async {
+            let! res = result
+            return
+                res
+                |> Result.map f
+        }
+        
     
     let gameDayToDto gdResult =
         async {
             let! result = gdResult  
             
-            return result |> Result.map Models.gameDayToModel 
+            return result |> Result.map DomainToModelMapping.gameDayToModel 
         }
         
     let seasonResultToDto totalResult =
         async {
             let! result = totalResult
             
-            return result |> Result.map Models.seasonResultToModel
+            return result |> Result.map DomainToModelMapping.seasonResultToModel
         }
     
     let tableToDto (table : Async<Result<Domain.SeasonRating, _>>) =
         
         let mapLine (team, rating, place) =
-            Models.teamToModel team,
+            DomainToModelMapping.teamToModel team,
             Converter.toDecimal rating,
-            Models.placeToModel place
+            DomainToModelMapping.placeToModel place
         
         async {
             let! res = table
@@ -54,32 +63,9 @@ module SixtySecondsApi =
         (ModelToDomainMapping.modelToSeasonRatingOptions options, ModelToDomainMapping.modelToSeasonRating results)
         |> (SixtySecondsWorkflow.filterSeasonResults >> SixtySecondsProgramInterpreter.interpretSimple >> tableToDto >> mapError)
 
-    let teamBestPlace arg =
-        arg |> (SixtySecondsWorkflow.teamBestPlace >> SixtySecondsProgramInterpreter.interpretSimple)
-        
-    let teamWorstPlace arg =
-        arg |> (SixtySecondsWorkflow.teamWorstPlace >> SixtySecondsProgramInterpreter.interpretSimple)
-        
-    let teamBestStrike arg =
-        arg |> (SixtySecondsWorkflow.teamBestStrike >> SixtySecondsProgramInterpreter.interpretSimple)
-    
-    let teamWorstStrike arg =
-        arg |> (SixtySecondsWorkflow.teamWorstStrike >> SixtySecondsProgramInterpreter.interpretSimple)
-        
-    let teamDifficultAnsweredQuestion arg =
-        arg |> (SixtySecondsWorkflow.teamDifficultAnsweredQuestion >> SixtySecondsProgramInterpreter.interpretSimple)
-        
-    let teamDifficultAnsweredQuestionCount arg =
-        arg |> (SixtySecondsWorkflow.teamDifficultAnsweredQuestionCount >> SixtySecondsProgramInterpreter.interpretSimple)
-        
-    let teamSimpleWrongAnsweredQuestion arg =
-        arg |> (SixtySecondsWorkflow.teamSimpleWrongAnsweredQuestion >> SixtySecondsProgramInterpreter.interpretSimple)
-        
-    let teamSimpleWrongAnsweredQuestionCount arg =
-        arg |> (SixtySecondsWorkflow.teamSimpleWrongAnsweredQuestionCount >> SixtySecondsProgramInterpreter.interpretSimple)
-        
-    let teamPerformance arg =
-        arg |> (SixtySecondsWorkflow.teamPerformance >> SixtySecondsProgramInterpreter.interpretSimple)
+    let teamPerformance (gameDay, team) =
+        (ModelToDomainMapping.modelToGameDay gameDay, ModelToDomainMapping.modelToTeam team)
+        |> (SixtySecondsWorkflow.teamPerformance >> SixtySecondsProgramInterpreter.interpretSimple >> (toDto DomainToModelMapping.teamPerformanceToModel) >> mapError)
         
     let parseTotal arg =
         arg |> (SixtySecondsWorkflow.parseTotal >> SixtySecondsProgramInterpreter.interpret >> seasonResultToDto >> mapError)
