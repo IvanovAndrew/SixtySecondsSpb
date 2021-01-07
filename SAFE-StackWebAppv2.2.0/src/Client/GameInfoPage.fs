@@ -2,6 +2,7 @@
 module GameDayPage
 
 open Client
+open Client.ServerApi
 open Elmish
 
 open Shared
@@ -19,22 +20,16 @@ type ModalWindow =
 type State =
     {
         GameDay : GameDayModel
-        Rating : GameDayRating
+        Rating : TeamResultsTable
 
         ModalWindow : ModalWindow option
     }
 
-let init gameDay =
-    {
-        GameDay = gameDay
-        Rating = Rating.ofGameDay gameDay
-
-        ModalWindow = None
-    }
-
-
 type Message =
 
+    | CalculateRating
+    | RatingUpdated of TeamResultsTable
+    
     | OpenWriteToSpreadsheet
     | WriteToSpreadsheetUpdated of WriteToSpreadsheetModalPage.SpreadsheetMessage
     | CloseWriteToSpreadsheet
@@ -47,8 +42,26 @@ type Message =
     | UpdateChartWindow of ChartModalPage.Message
     | CloseChartWindow
 
+let init gameDay =
+    {
+        GameDay = gameDay
+        Rating = []
+
+        ModalWindow = None
+    }, CalculateRating |> Cmd.ofMsg 
+
+
 let update message model =
     match message, model.ModalWindow with
+    | CalculateRating, _ ->
+        
+        let ofSuccess = function
+            | Ok rating -> rating |> RatingUpdated
+            | Error e -> failwith e
+        model, Cmd.OfAsync.perform sixtySecondsApi.gameDayRating (All, model.GameDay) ofSuccess
+        
+    | RatingUpdated rating, _ -> {model with Rating = rating}, Cmd.none
+    
     | OpenWriteToSpreadsheet, None ->
         let innerState = WriteToSpreadsheetModalPage.init model.GameDay
         {model with ModalWindow = Some <| Spreadsheet(innerState) }, Cmd.none

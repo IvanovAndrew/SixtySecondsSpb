@@ -34,6 +34,11 @@ module ModelToDomainMapping =
         |> List.map modelToAnswerOnQuestion
         |> Answers.ofAnswersList
         
+    let modelToGamedayFilter (filter : GamedayRatingTypeModel) : RatingType =
+        match filter with
+        | GamedayRatingTypeModel.All -> All
+        | GamedayRatingTypeModel.Threshold i -> i |> Converter.rightAnswerFromInt |> Threshold
+        
     let modelToGameDay (model : GameDayModel) : GameDay =
         {
             Tournament = modelToTournament model.Tournament

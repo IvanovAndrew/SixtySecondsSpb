@@ -44,10 +44,11 @@ module Models =
         
     type SeasonResultModel = Map<TeamModel, GamedayPointsModel list>
         
+    type TeamResultsTable = (TeamModel * decimal * PlaceModel) list
     type SeasonTableModel =
         {
             Results : SeasonResultModel
-            Table : (TeamModel * decimal * PlaceModel) list
+            Table : TeamResultsTable
             GamesCount : int
         }
 
@@ -65,6 +66,10 @@ module Models =
             FinalDate : FinalDateModel
             RatingOption : RatingOption
         }
+        
+    type GamedayRatingTypeModel =
+        | All
+        | Threshold of int
         
     
 

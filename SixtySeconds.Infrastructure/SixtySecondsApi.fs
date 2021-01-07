@@ -9,13 +9,13 @@ module SixtySecondsApi =
     open Shared
     
     
-    let mapError result =
+    let private mapError result =
         async {
             let! res = result
             return res |> Result.mapError SixtySeconds.Common.ErrorMessages.errorToString
         }
         
-    let toDto f result =
+    let private toDto f result =
         async {
             let! res = result
             return
@@ -24,21 +24,21 @@ module SixtySecondsApi =
         }
         
     
-    let gameDayToDto gdResult =
+    let private gameDayToDto gdResult =
         async {
             let! result = gdResult  
             
             return result |> Result.map DomainToModelMapping.gameDayToModel 
         }
         
-    let seasonResultToDto totalResult =
+    let private seasonResultToDto totalResult =
         async {
             let! result = totalResult
             
             return result |> Result.map DomainToModelMapping.seasonResultToModel
         }
     
-    let tableToDto (table : Async<Result<Domain.SeasonRating, _>>) =
+    let private seasonTableToDto (table : Async<Result<Domain.SeasonRating, _>>) =
         
         let mapLine (team, rating, place) =
             DomainToModelMapping.teamToModel team,
@@ -53,15 +53,31 @@ module SixtySecondsApi =
                 |> Result.map (fun sr -> sr |> List.map mapLine)
         }
         
+    let private gameDayTableToDto (table : Async<Result<Domain.GameDayRating, _>>) =
+        
+        let mapLine (team, rating, place) =
+            DomainToModelMapping.teamToModel team,
+            rating |> Converter.toInt |> decimal,
+            DomainToModelMapping.placeToModel place
+        
+        async {
+            let! res = table
+            
+            return
+                res
+                |> Result.map (fun sr -> sr |> List.map mapLine)
+        }
+        
     
     
-    let gameDayRating arg =
-           arg |> (SixtySecondsWorkflow.gameDayRating >> SixtySecondsProgramInterpreter.interpretSimple >> mapError)
+    let gameDayRating (filter, gameDay) =
+           (ModelToDomainMapping.modelToGamedayFilter filter, ModelToDomainMapping.modelToGameDay gameDay)
+           |> (SixtySecondsWorkflow.gameDayRating >> SixtySecondsProgramInterpreter.interpretSimple >> gameDayTableToDto >> mapError)
                    
                    
     let filterTotalTable (options, results) =
         (ModelToDomainMapping.modelToSeasonRatingOptions options, ModelToDomainMapping.modelToSeasonRating results)
-        |> (SixtySecondsWorkflow.filterSeasonResults >> SixtySecondsProgramInterpreter.interpretSimple >> tableToDto >> mapError)
+        |> (SixtySecondsWorkflow.filterSeasonResults >> SixtySecondsProgramInterpreter.interpretSimple >> seasonTableToDto >> mapError)
 
     let teamPerformance (gameDay, team) =
         (ModelToDomainMapping.modelToGameDay gameDay, ModelToDomainMapping.modelToTeam team)

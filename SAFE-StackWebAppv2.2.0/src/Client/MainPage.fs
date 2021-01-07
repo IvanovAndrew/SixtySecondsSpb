@@ -87,7 +87,9 @@ let update message state =
                 let ofError exn = GameNotLoaded <| string exn
                 state, Cmd.OfAsync.either sixtySecondsApi.parseGameDay gameUrl ofSuccess ofError
         | None -> state, Cmd.none
-    | GameLoaded gd, _ -> {state with Page = GameInfoPage <| GameDayPage.init gd }, Cmd.none
+    | GameLoaded gd, _ ->
+        let updatedState, nextCmd = GameDayPage.init gd
+        {state with Page = GameInfoPage <| updatedState }, nextCmd |> Cmd.map GameDayInfoMessage
     | GameNotLoaded e, _ -> {state with Status = Error e}, Cmd.none
     | SeasonResultLoaded st, _ ->
         let updatedState, nextCmd = SeasonInfoPage.init st

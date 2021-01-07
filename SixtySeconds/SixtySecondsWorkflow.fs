@@ -24,7 +24,7 @@ module SixtySecondsWorkflow =
             return! parseGameDay url gameName 
         }
     
-    let gameDayRating (gameDay, ratingType) =
+    let gameDayRating (ratingType, gameDay) =
         simpleProgram {
         
             // TODO Move to action 

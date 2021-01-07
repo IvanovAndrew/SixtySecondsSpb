@@ -19,7 +19,7 @@ type State = {
     MaximumGames : int
     SeasonResults : SeasonResultModel
     Filter : RatingFilterModel
-    FilteredSeasonTable : (TeamModel * decimal * PlaceModel) list
+    FilteredSeasonTable : TeamResultsTable
 }
 
 type Message =
@@ -27,7 +27,7 @@ type Message =
     | FinalGameCountsChanged of bool
     | FinalDateChanged of DateTime option
     | FilterTable
-    | TableUpdated of (TeamModel * decimal * PlaceModel) list
+    | TableUpdated of TeamResultsTable
     | TableNotUpdated of string
 
 let init (seasonTable : SeasonResultModel) =

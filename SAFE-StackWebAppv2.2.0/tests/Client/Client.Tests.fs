@@ -73,7 +73,7 @@ let client = testList "Client" [
     
     testCase "Open spreadsheet window" <| fun _ ->
         
-        let model = GameDayPage.init gameday
+        let model, _ = GameDayPage.init gameday
 
         let model, _ = GameDayPage.update (GameDayPage.OpenWriteToSpreadsheet) model
 
@@ -86,7 +86,7 @@ let client = testList "Client" [
         
     testCase "Close spreadsheet window" <| fun _ ->
         
-        let initialModel = GameDayPage.init gameday
+        let initialModel, _ = GameDayPage.init gameday
 
         let model, _ = GameDayPage.update (GameDayPage.OpenWriteToSpreadsheet) initialModel
 
@@ -96,7 +96,7 @@ let client = testList "Client" [
         
     testCase "Open team performance window" <| fun _ ->
         
-        let initialModel = GameDayPage.init gameday
+        let initialModel, _ = GameDayPage.init gameday
 
         let model, _ = GameDayPage.update (GameDayPage.OpenTeamPerformance) initialModel
 
@@ -109,7 +109,7 @@ let client = testList "Client" [
         
     testCase "Close team performance window" <| fun _ ->
         
-        let initialModel = GameDayPage.init gameday
+        let initialModel, _ = GameDayPage.init gameday
 
         let model, _ = GameDayPage.update (GameDayPage.OpenTeamPerformance) initialModel
 
@@ -119,7 +119,7 @@ let client = testList "Client" [
         
     testCase "Open chart window" <| fun _ ->
         
-        let initialModel = GameDayPage.init gameday
+        let initialModel, _ = GameDayPage.init gameday
 
         let model, _ = GameDayPage.update (GameDayPage.OpenChartWindow) initialModel
 
@@ -132,7 +132,7 @@ let client = testList "Client" [
         
     testCase "Close chart window" <| fun _ ->
         
-        let initialModel = GameDayPage.init gameday
+        let initialModel, _ = GameDayPage.init gameday
 
         let model, _ = GameDayPage.update (GameDayPage.OpenChartWindow) initialModel
 
