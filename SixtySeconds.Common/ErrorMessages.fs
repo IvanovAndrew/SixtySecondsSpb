@@ -11,7 +11,8 @@ let errorToString = function
         | MissingSeasonName -> "Missing season name"
         | MissingGameName -> "Missing game name"
         | MissingAnswersCount -> "Missing answers count"
-        | AnswersParsingError err -> sprintf "Can not answers. %s" err
+        | CantParseDate d -> sprintf "Can't parse string %s as date" d
+        | AnswersParsingError err -> sprintf "Can not parse answers. %s" err
         | TableColumnNotFound column -> sprintf "Table column %s not found" column
         | TeamParsingError err -> sprintf "Can not parse team. %s" err
         | SheetNotFound sheetName -> sprintf "Sheet %s not found" sheetName
