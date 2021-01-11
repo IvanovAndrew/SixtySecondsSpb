@@ -40,7 +40,7 @@ type Message =
     | ButtonPressed
     | GameLoaded of GameDayModel
     | GameNotLoaded of string
-    | SeasonResultLoaded of SecondsSeasonModel * MatrixSeasonModel
+    | SeasonResultLoaded of SixtySecondsSeasonModel * MatrixSeasonModel
     | SeasonResultNotLoaded of string
     | SeasonInfoMessage of SeasonInfoPage.Message
     | GameDayInfoMessage of GameDayPage.Message
