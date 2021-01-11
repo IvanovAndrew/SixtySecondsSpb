@@ -15,11 +15,17 @@ open Shared.SeasonResult
 
 open System
 
+type SeasonTab =
+    | SixtySeconds
+    | Matrix
+
 type State = {
     MaximumGames : int
-    SeasonResults : SeasonResultModel
+    SixtySecondsResults : SeasonResultModel
+    MatrixResults : MatrixSeasonModel
     Filter : RatingFilterModel
-    FilteredSeasonTable : TeamResultsTable
+    ActiveTab : SeasonTab
+    FilteredTable : TeamResultsTable
 }
 
 type Message =
@@ -29,20 +35,26 @@ type Message =
     | FilterTable
     | TableUpdated of TeamResultsTable
     | TableNotUpdated of string
+    | TabChanged of SeasonTab
 
-let init (seasonTable : SeasonResultModel) =
 
-    let gamesAmount = seasonTable |> SeasonResult.gamesAmount 
+let init secondsTable matrixTable =
+
+    let gamesAmount = secondsTable |> SeasonResult.gamesAmount 
     {
         MaximumGames = gamesAmount
-        SeasonResults = seasonTable
+
+        SixtySecondsResults = secondsTable
+        MatrixResults = matrixTable
+        
         Filter =
             {
                 GamesToCount = gamesAmount
                 FinalDate = NotPlayedYet
                 RatingOption = FinalGameCounts 
             }
-        FilteredSeasonTable = [] 
+        ActiveTab = SeasonTab.SixtySeconds
+        FilteredTable = []
     },  GameCountChanged(gamesAmount) |> Cmd.ofMsg
 
 let update message state =
@@ -54,8 +66,8 @@ let update message state =
     | FinalGameCountsChanged counts ->
         
         let maximumGames =
-            if counts then state.SeasonResults |> gamesAmount
-            else state.SeasonResults |> gamesAmount |> (+) -1
+            if counts then state.SixtySecondsResults |> gamesAmount
+            else state.SixtySecondsResults |> gamesAmount |> (+) -1
         
         let gamesToCount =
             if counts then state.Filter.GamesToCount
@@ -76,32 +88,43 @@ let update message state =
             match dateOption with
             | Some date -> PlayedAlready date
             | None -> NotPlayedYet
+            
         {state with Filter = {state.Filter with FinalDate = finalDate}}, FilterTable |> Cmd.ofMsg
+    
+    | TabChanged newTab ->
+        
+        { state with ActiveTab = newTab; FilteredTable = []}, FilterTable |> Cmd.ofMsg
         
     | FilterTable ->
+        
+        let results =
+            match state.ActiveTab with
+            | SixtySeconds -> state.SixtySecondsResults
+            | Matrix -> state.MatrixResults
+        
         let ofSuccess res =
             match res with
             | Ok value -> TableUpdated value
             | Error str -> TableNotUpdated str
-        let ofError exn = TableNotUpdated <| string exn
-        state, Cmd.OfAsync.either sixtySecondsApi.filterRating (state.Filter, state.SeasonResults) ofSuccess ofError
         
-    | TableUpdated table -> {state with FilteredSeasonTable = table}, Cmd.none
+        state, Cmd.OfAsync.perform sixtySecondsApi.filterRating (state.Filter, results) ofSuccess
+        
+    | TableUpdated table -> {state with FilteredTable = table}, Cmd.none
     // TODO rewrite it
     | TableNotUpdated e -> failwith e
 
 let render state dispatch =
 
     let lines =
-        state.FilteredSeasonTable
-        |> Seq.map (fun (team, points, place) -> tr[] [ td [] [str <| Place.toString place]; td [] [str team.Name]; td[] [str <| string points] ])
+        state.FilteredTable
+        |> List.map (fun (team, points, place) -> tr[] [ td [] [str <| Place.toString place]; td [] [str team.Name]; td[] [str <| string points] ])
 
     let selectItems =
         [1..state.MaximumGames]
         |> List.map (fun i -> option [Value (string i)] [str <| string i])
         
     let selectFinalDate =
-        state.SeasonResults
+        state.SixtySecondsResults
         |> gameDates
         |> List.map (fun date -> option [Value (Some date)] [str <| sprintf "%d.%d.%d" date.Day date.Month date.Year])
         |> List.append [option [Value(None)] [str <| "Not played yet"]]
@@ -164,7 +187,27 @@ let render state dispatch =
                                 ]
                         ]
                 ]
-            
+                
+            Tabs.tabs [Tabs.Size IsLarge]
+                [
+                    Tabs.tab
+                        [
+                            Tabs.Tab.IsActive (match state.ActiveTab with SixtySeconds -> true | _ -> false)
+                            Tabs.Tab.Option.Props [OnClick (fun _ -> SixtySeconds |> TabChanged |> dispatch)]
+                        ]
+                        [
+                            a [] [str "60 seconds"]
+                        ]
+                    Tabs.tab
+                        [
+                            Tabs.Tab.IsActive (match state.ActiveTab with Matrix -> true | _ -> false)
+                            Tabs.Tab.Option.Props [OnClick (fun _ -> Matrix |> TabChanged |> dispatch)]
+                        ]
+                        [
+                            a [] [str "Matrix"]
+                        ]
+                ]
+                
             Table.table [Table.IsBordered; Table.IsStriped; Table.IsHoverable; ]
                 [
                     thead []

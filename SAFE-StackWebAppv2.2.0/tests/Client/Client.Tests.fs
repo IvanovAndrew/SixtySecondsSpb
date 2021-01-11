@@ -22,12 +22,21 @@ let gameday : GameDayModel =
             PackageSize = 3
         }
         
-let seasonTableModel : SeasonResultModel =
+let secondsSeason : SecondsSeasonModel =
     
         [
             {Id = 1; Name = "Team 1"}, [{Date = DateTime(2020, 11, 1); Points = 10m}; {Date = DateTime(2020, 12, 1); Points = 2m};{Date = DateTime(2020, 12, 15); Points = 3m};]
             {Id = 2; Name = "Team 2"}, [{Date = DateTime(2020, 11, 1); Points = 5m}; {Date = DateTime(2020, 12, 1); Points = 5m};{Date = DateTime(2020, 12, 15); Points = 5m};]
             {Id = 3; Name = "Team 3"}, [{Date = DateTime(2020, 11, 1); Points = 2m}; {Date = DateTime(2020, 12, 1); Points = 3m};{Date = DateTime(2020, 12, 15); Points = 5m};]
+        ]
+        |> Map.ofList
+
+let matrixSeason : MatrixSeasonModel =
+    
+        [
+            {Id = 1; Name = "Team 1"}, [{Date = DateTime(2020, 11, 1); Points = 50m}; {Date = DateTime(2020, 12, 1); Points = 20m};{Date = DateTime(2020, 12, 15); Points = 30m};]
+            {Id = 2; Name = "Team 2"}, [{Date = DateTime(2020, 11, 1); Points = 50m}; {Date = DateTime(2020, 12, 1); Points = 50m};{Date = DateTime(2020, 12, 15); Points = 50m};]
+            {Id = 3; Name = "Team 3"}, [{Date = DateTime(2020, 11, 1); Points = 20m}; {Date = DateTime(2020, 12, 1); Points = 30m};{Date = DateTime(2020, 12, 15); Points = 50m};]
         ]
         |> Map.ofList
 
@@ -142,34 +151,66 @@ let client = testList "Client" [
         
     testCase "Season table: final game counts towards season by default" <| fun _ ->
         
-        let initialModel, _ = SeasonInfoPage.init seasonTableModel
+        let initialModel, _ = SeasonInfoPage.init secondsSeason matrixSeason
         
         let expected = FinalGameCounts
         Expect.equal initialModel.Filter.RatingOption expected "Final games should be counted by default"
         
     testCase "Season table: final game has not played by default" <| fun _ ->
         
-        let initialModel, _ = SeasonInfoPage.init seasonTableModel
+        let initialModel, _ = SeasonInfoPage.init secondsSeason matrixSeason
         
         let expected = NotPlayedYet 
         Expect.equal initialModel.Filter.FinalDate expected "Final games should be not played by default"
         
     testCase "Season table has maximum games to count by default" <| fun _ ->
             
-        let initialModel, _ = SeasonInfoPage.init seasonTableModel
+        let initialModel, _ = SeasonInfoPage.init secondsSeason matrixSeason
         
         Expect.equal initialModel.MaximumGames initialModel.Filter.GamesToCount  "Season table has maximum games to count by default"
         
     testCase "Season table: when final game doesn't count then maximum games is lesser by one" <| fun _ ->
             
         let model = 
-            seasonTableModel
-            |> SeasonInfoPage.init
+            matrixSeason
+            |> SeasonInfoPage.init secondsSeason
             |> fst
             |> SeasonInfoPage.update (SeasonInfoPage.Message.FinalGameCountsChanged(false))
             |> fst
         
         Expect.equal model.MaximumGames 2 "Season table has maximum games to count by default"
+        
+    testCase "Season table: 60 seconds table is chosen by default" <| fun _ ->
+            
+        let model = 
+            matrixSeason
+            |> SeasonInfoPage.init secondsSeason
+            |> fst
+        
+        Expect.equal model.ActiveTab SeasonInfoPage.SixtySeconds "Season table has chosen 60 seconds tab by default"
+        
+    testCase "Season table: choose matrix tab" <| fun _ ->
+            
+        let model = 
+            matrixSeason
+            |> SeasonInfoPage.init secondsSeason
+            |> fst
+            |> SeasonInfoPage.update (SeasonInfoPage.TabChanged(SeasonInfoPage.Matrix))
+            |> fst
+        
+        Expect.equal model.ActiveTab SeasonInfoPage.Matrix "Must be matrix"
+        
+    testCase "Season table: changing tab updates table" <| fun _ ->
+            
+        let cmd = 
+            matrixSeason
+            |> SeasonInfoPage.init secondsSeason
+            |> fst
+            |> SeasonInfoPage.update (SeasonInfoPage.TabChanged(SeasonInfoPage.SeasonTab.Matrix))
+            |> snd
+        
+        
+        Expect.notEqual cmd Elmish.Cmd.none "Must be command"
 ]
 
 let all =

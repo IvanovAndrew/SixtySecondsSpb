@@ -43,6 +43,8 @@ module Models =
         }
         
     type SeasonResultModel = Map<TeamModel, GamedayPointsModel list>
+    type SixtySecondsSeasonModel = SeasonResultModel
+    type MatrixSeasonModel = SeasonResultModel
         
     type TeamResultsTable = (TeamModel * decimal * PlaceModel) list
     type SeasonTableModel =

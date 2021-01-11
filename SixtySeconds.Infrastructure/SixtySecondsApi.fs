@@ -31,11 +31,11 @@ module SixtySecondsApi =
             return result |> Result.map DomainToModelMapping.gameDayToModel 
         }
         
-    let private seasonResultToDto totalResult =
+    let private seasonResultsToDto totalResult =
         async {
             let! result = totalResult
             
-            return result |> Result.map DomainToModelMapping.seasonResultToModel
+            return result |> Result.map (fun (secondsTable, matrixTable) -> secondsTable |> DomainToModelMapping.seasonResultToModel, matrixTable |> DomainToModelMapping.seasonResultToModel)
         }
     
     let private seasonTableToDto (table : Async<Result<Domain.SeasonRating, _>>) =
@@ -84,7 +84,7 @@ module SixtySecondsApi =
         |> (SixtySecondsWorkflow.teamPerformance >> SixtySecondsProgramInterpreter.interpretSimple >> (toDto DomainToModelMapping.teamPerformanceToModel) >> mapError)
         
     let parseTotal arg =
-        arg |> (SixtySecondsWorkflow.parseTotal >> SixtySecondsProgramInterpreter.interpret >> seasonResultToDto >> mapError)
+        arg |> (SixtySecondsWorkflow.parseTotal >> SixtySecondsProgramInterpreter.interpret >> seasonResultsToDto >> mapError)
         
     let parseGameDay arg =
         arg |> (SixtySecondsWorkflow.parseGameDay >> SixtySecondsProgramInterpreter.interpret >> gameDayToDto >> mapError)

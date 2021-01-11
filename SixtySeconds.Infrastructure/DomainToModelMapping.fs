@@ -81,13 +81,6 @@ module DomainToModelMapping =
         |> Seq.map (fun (team, results) -> teamToModel team, results |> List.map gamePointsToModel)
         |> Map.ofSeq
         
-    let seasonTableToModel (seasonTable : SeasonTable) : SeasonTableModel =
-        {
-            Results = seasonResultToModel seasonTable.Results 
-            Table = seasonTable.Table |> Seq.map (fun (team, point, place) -> teamToModel team, decimal point, placeToModel place) |> List.ofSeq
-            GamesCount = seasonTable.GamesCount.Value
-        }
-        
     let teamPerformanceToModel (teamPerformance : TeamPerformance) : TeamPerformanceModel =
         
         {

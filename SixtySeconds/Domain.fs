@@ -198,10 +198,12 @@ module Domain =
     type SeasonRating = TeamRatingPosition<decimal<Point>> list
     
     type SeasonResults = Map<Team, RatingPoints>
+    type SixtySecondsSeason = SeasonResults
+    type MatrixSeason = SeasonResults
     
     type SeasonTable = 
         {
-            Results : SeasonResults
+            Results : SixtySecondsSeason
             Table : SeasonRating
             GamesCount : PositiveNum
         }

@@ -1,12 +1,11 @@
 ﻿namespace SixtySeconds
 
-open Actions
-open Common.CommonTypes
+
 
 module SixtySecondsWorkflow =
-    
-    open Domain
+
     open Actions
+    open Domain
     open SixtySecondsProgramBuilder
     
     let parseTotal url =

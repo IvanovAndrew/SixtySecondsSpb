@@ -10,7 +10,7 @@ module SixtySecondsProgramBuilder =
         | ParseGameDay of (Url * GameName) * (Result<GameDay, SixtySecondsError> -> Program<'a>)
         | GameDayRating of gameDay : GameDay * (GameDayRating -> Program<'a>)
         
-        | ParseSeasonRating of url : Url * (Result<SeasonResults, SixtySecondsError> -> Program<'a>)
+        | ParseSeasonRating of url : Url * (Result<SixtySecondsSeason * MatrixSeason, SixtySecondsError> -> Program<'a>)
         | TopNResultsTable of (SeasonResultFilter * SeasonResults) * (SeasonRating -> Program<'a>)
         | Stop of 'a
         

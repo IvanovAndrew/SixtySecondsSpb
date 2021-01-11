@@ -500,9 +500,11 @@ let parseTotalFromGoogleSpreadsheet document =
     
 let parseTotalFrom60SecSite document =
     
-    let tableNodes =
+    let tableNodes attr =
         document
         |> HtmlDocument.body
+        |> HtmlNode.descendants
+        |> Seq.find (HtmlNode.hasAttribute "id" attr)
         |> HtmlNode.descendants
         |> Seq.filter (HtmlNode.hasAttribute "id" "rate_table")
         // first one is about Первая лига, the second one is about Высшая лига 
@@ -523,11 +525,9 @@ let parseTotalFrom60SecSite document =
     let parseLine options node =
         
         let innerTextOfNode n index = 
-            let nodeWithText = 
-                n 
-                |> HtmlNode.elements
-                |> Seq.item index
-            nodeWithText
+            n 
+            |> HtmlNode.elements
+            |> Seq.item index
             |> HtmlNode.elements
             |> Seq.filter (fun e -> e.Name() <> "sup")
             |> Seq.head
@@ -579,15 +579,22 @@ let parseTotalFrom60SecSite document =
         team() 
         |> Result.map (fun team -> (team, teamResults))
         
-    result {
-        let! options = parseOptions tableNodes
-        
-        let teamLines = 
-            tableNodes
-            |> HtmlNode.elements
-            |> List.tail
-            |> List.head
-            |> HtmlNode.elements
+    let parseTable name =
+        result {
+            let nodes = tableNodes name
+            let! options = parseOptions nodes
             
-        return! parseSeasonResults teamLines (parseLine options) 
-    }
+            let teamLines = 
+                nodes
+                |> HtmlNode.elements
+                |> List.tail
+                |> List.head
+                |> HtmlNode.elements
+            
+            return! parseSeasonResults teamLines (parseLine options)
+        }
+        
+    ["60sec"; "matrix"]
+    |> List.map parseTable
+    |> Result.combine
+    |> Result.map (fun seq -> seq |> Seq.head, seq |> Seq.skip 1 |> Seq.head)
