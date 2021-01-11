@@ -22,7 +22,7 @@ let gameday : GameDayModel =
             PackageSize = 3
         }
         
-let secondsSeason : SecondsSeasonModel =
+let secondsSeason : SixtySecondsSeasonModel =
     
         [
             {Id = 1; Name = "Team 1"}, [{Date = DateTime(2020, 11, 1); Points = 10m}; {Date = DateTime(2020, 12, 1); Points = 2m};{Date = DateTime(2020, 12, 15); Points = 3m};]
