@@ -501,14 +501,21 @@ let parseTotalFromGoogleSpreadsheet document =
 let parseTotalFrom60SecSite document =
     
     let tableNodes attr =
-        document
-        |> HtmlDocument.body
-        |> HtmlNode.descendants
-        |> Seq.find (HtmlNode.hasAttribute "id" attr)
-        |> HtmlNode.descendants
-        |> Seq.filter (HtmlNode.hasAttribute "id" "rate_table")
-        // first one is about Первая лига, the second one is about Высшая лига 
-        |> Seq.head
+        let node = 
+            document
+            |> HtmlDocument.body
+            |> HtmlNode.descendants
+            |> Seq.tryFind (HtmlNode.hasAttribute "id" attr)
+            
+        node
+        |> Option.map (fun node ->  
+            node
+            |> HtmlNode.descendants
+            |> Seq.filter (HtmlNode.hasAttribute "id" "rate_table")
+            // first one is about Первая лига, the second one is about Высшая лига 
+            |> Seq.head)
+        |> Result.ofOption attr
+        |> expectTableNotFound
         
     let parseOptions tableNodes = 
         
@@ -581,7 +588,7 @@ let parseTotalFrom60SecSite document =
         
     let parseTable name =
         result {
-            let nodes = tableNodes name
+            let! nodes = tableNodes name
             let! options = parseOptions nodes
             
             let teamLines = 
@@ -594,7 +601,7 @@ let parseTotalFrom60SecSite document =
             return! parseSeasonResults teamLines (parseLine options)
         }
         
-    ["60sec"; "matrix"]
+    ["sec"; "matrix"]
     |> List.map parseTable
     |> Result.combine
     |> Result.map (fun seq -> seq |> Seq.head, seq |> Seq.skip 1 |> Seq.head)

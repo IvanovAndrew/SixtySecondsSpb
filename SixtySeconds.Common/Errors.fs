@@ -9,6 +9,7 @@ module Errors =
     | MissingSeasonName
     | MissingGameName
     | MissingAnswersCount
+    | TableNotFound of string
     | TableColumnNotFound of string
     | CantParseDate of string
     | TeamParsingError of string
@@ -37,6 +38,7 @@ module Errors =
     
     let expectWebRequestError result = result |> Result.mapError WebRequestError
     let expectParsingError result = result |> Result.mapError ParsingError
+    let expectTableNotFound result = result |> Result.mapError TableNotFound
     let expectTableColumnNotFoundError result = result |> Result.mapError TableColumnNotFound
     let expectCantParseDateError result = result |> Result.mapError CantParseDate
     let expectTeamParsingError result = result |> Result.mapError TeamParsingError
