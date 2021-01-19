@@ -47,12 +47,6 @@ module Models =
     type MatrixSeasonModel = SeasonResultModel
         
     type TeamResultsTable = (TeamModel * decimal * PlaceModel) list
-    type SeasonTableModel =
-        {
-            Results : SeasonResultModel
-            Table : TeamResultsTable
-            GamesCount : int
-        }
 
     type FinalDateModel =
         | PlayedAlready of DateTime
@@ -62,12 +56,21 @@ module Models =
         | FinalGameDoesntCount
         | FinalGameCounts 
     
-    type RatingFilterModel =
+    type MatrixFilter =
+        {
+            GamesToCount : int
+        }
+        
+    type SixtySecondsFilter =
         {
             GamesToCount : int
             FinalDate : FinalDateModel
             RatingOption : RatingOption
         }
+        
+    type RatingFilterModel =
+        | MatrixFilter of MatrixFilter
+        | SixtySecondsFilter of SixtySecondsFilter
         
     type GamedayRatingTypeModel =
         | All
@@ -100,6 +103,3 @@ module Models =
     type ChartType =
         | Answers of ShowChartsInput
         | Places of ShowChartsInput
-        
-        
-    
