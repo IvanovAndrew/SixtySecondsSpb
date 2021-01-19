@@ -15,7 +15,7 @@ open Shared.Models
 type Page =
     | UrlPage
     | GameInfoPage of GameDayPage.State
-    | SeasonInfoPage of SeasonInfoPage.State
+    | SeasonInfoPage of SeasonInfoPage.Model
 
 type UrlKind =
     | Game of string

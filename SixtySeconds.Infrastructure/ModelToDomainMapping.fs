@@ -62,14 +62,23 @@ module ModelToDomainMapping =
         |> Map.ofSeq
         
     let modelToSeasonRatingOptions (model : RatingFilterModel) : SeasonResultFilter =
-        {
-            GamesToCount = PositiveNum.ofConst model.GamesToCount
-            FinalDate =
-                match model.FinalDate with
-                | FinalDateModel.PlayedAlready p -> FinalDate.AlreadyPlayed p
-                | FinalDateModel.NotPlayedYet -> FinalDate.NotPlayedYet
-            RatingOption =
-                match model.RatingOption with
-                | Shared.Models.RatingOption.FinalGameCounts -> RatingOption.FinalGameCounts
-                | Shared.Models.RatingOption.FinalGameDoesntCount -> RatingOption.FinalGameDoesntCount
-        }
+        
+        match model with
+        | MatrixFilter filter ->
+            {
+                GamesToCount = PositiveNum.ofConst filter.GamesToCount
+                FinalDate = NotPlayedYet
+                RatingOption = FinalGameCounts
+            }
+        | SixtySecondsFilter filter ->
+            {
+                GamesToCount = PositiveNum.ofConst filter.GamesToCount
+                FinalDate =
+                    match filter.FinalDate with
+                    | FinalDateModel.PlayedAlready p -> FinalDate.AlreadyPlayed p
+                    | FinalDateModel.NotPlayedYet -> FinalDate.NotPlayedYet
+                RatingOption =
+                    match filter.RatingOption with
+                    | Shared.Models.RatingOption.FinalGameCounts -> RatingOption.FinalGameCounts
+                    | Shared.Models.RatingOption.FinalGameDoesntCount -> RatingOption.FinalGameDoesntCount
+            }

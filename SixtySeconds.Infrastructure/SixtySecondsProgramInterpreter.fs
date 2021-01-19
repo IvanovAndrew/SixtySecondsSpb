@@ -19,7 +19,7 @@ module SixtySecondsProgramInterpreter =
     let rec private interpretSixtySecondsProgram (prog : Program<'a>) =
         match prog with
         | ParseGameDay ((url,game), next) ->
-            (url,game) |> parseGameDay |> bindAsync (next >> interpretSixtySecondsProgram)
+            (url, game) |> parseGameDay |> bindAsync (next >> interpretSixtySecondsProgram)
             
         | GameDayRating (gameDay, next) ->
             gameDay |> gameDayRating |> bindAsync (next >> interpretSixtySecondsProgram)

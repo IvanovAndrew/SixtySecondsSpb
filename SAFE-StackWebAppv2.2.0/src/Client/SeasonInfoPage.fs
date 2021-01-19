@@ -9,131 +9,223 @@ open Fulma
 open Client.ServerApi
 
 open Shared
-open Shared.Api
 open Shared.Models
 open Shared.SeasonResult
 
 open System
 
-type SeasonTab =
-    | SixtySeconds
-    | Matrix
-
-type State = {
+type MatrixSubModel = {
     MaximumGames : int
-    SixtySecondsResults : SeasonResultModel
-    MatrixResults : MatrixSeasonModel
-    Filter : RatingFilterModel
-    ActiveTab : SeasonTab
-    FilteredTable : TeamResultsTable
+    Results : Map<TeamModel, GamedayPointsModel list>
+    Filter: MatrixFilter
+    Table : TeamResultsTable
+}
+
+type SixtySecondsSubModel =
+    {
+        MaximumGames : int
+        Results : Map<TeamModel, GamedayPointsModel list>
+        Filter : SixtySecondsFilter
+        Table  : TeamResultsTable
+    }
+
+type ActiveSubmodel =
+    | SixtySeconds of SixtySecondsSubModel
+    | Matrix of MatrixSubModel
+
+type Model = {
+    MatrixSubModel : MatrixSubModel
+    SixtySecondsSubModel : SixtySecondsSubModel
+    ActiveSubmodel : ActiveSubmodel
 }
 
 type Message =
     | GameCountChanged of int
     | FinalGameCountsChanged of bool
     | FinalDateChanged of DateTime option
-    | FilterTable
+    | FilterSixtySecondsTable
+    | FilterMatrixTable
+    | SixtySecondsTableUpdated of TeamResultsTable
+    | MatrixTableUpdated of TeamResultsTable
     | TableUpdated of TeamResultsTable
     | TableNotUpdated of string
-    | TabChanged of SeasonTab
-
+    | TabChanged
 
 let init secondsTable matrixTable =
 
-    let gamesAmount = secondsTable |> SeasonResult.gamesAmount 
-    {
-        MaximumGames = gamesAmount
-
-        SixtySecondsResults = secondsTable
-        MatrixResults = matrixTable
-        
-        Filter =
-            {
-                GamesToCount = gamesAmount
-                FinalDate = NotPlayedYet
-                RatingOption = FinalGameCounts 
-            }
-        ActiveTab = SeasonTab.SixtySeconds
-        FilteredTable = []
-    },  GameCountChanged(gamesAmount) |> Cmd.ofMsg
-
-let update message state =
-    match message with
-    | GameCountChanged games ->
-        
-        { state with Filter = {state.Filter with GamesToCount = games} }, FilterTable |> Cmd.ofMsg
-        
-    | FinalGameCountsChanged counts ->
-        
-        let maximumGames =
-            if counts then state.SixtySecondsResults |> gamesAmount
-            else state.SixtySecondsResults |> gamesAmount |> (+) -1
-        
-        let gamesToCount =
-            if counts then state.Filter.GamesToCount
-            else
-                if state.Filter.GamesToCount > maximumGames then maximumGames else state.Filter.GamesToCount
-        let newFilter =
-            {
-                state.Filter with
-                    GamesToCount = gamesToCount;
-                    RatingOption = if counts then FinalGameCounts else FinalGameDoesntCount
-            } 
-                
-        { state with Filter = newFilter; MaximumGames = maximumGames }, FilterTable |> Cmd.ofMsg
-        
-    | FinalDateChanged dateOption ->
-        
-        let finalDate =
-            match dateOption with
-            | Some date -> PlayedAlready date
-            | None -> NotPlayedYet
-            
-        {state with Filter = {state.Filter with FinalDate = finalDate}}, FilterTable |> Cmd.ofMsg
+    let matrixFilter : MatrixFilter = { GamesToCount = matrixTable |> gamesAmount } 
     
-    | TabChanged newTab ->
+    let matrixSubModel : MatrixSubModel =
+        {
+            MaximumGames = matrixTable |> gamesAmount
+            Results = matrixTable
+            Filter = matrixFilter
+            Table = []
+        }
+    
+    let sixtySecondsSubModel =
+        {
+            MaximumGames = secondsTable |> gamesAmount
+            Results = secondsTable
+            Filter = { GamesToCount = secondsTable |> gamesAmount; FinalDate = NotPlayedYet; RatingOption = FinalGameCounts }
+            Table = []
+        }
+    
+    {
+        MatrixSubModel = matrixSubModel
+        SixtySecondsSubModel = sixtySecondsSubModel
+
+        ActiveSubmodel = SixtySeconds sixtySecondsSubModel
+    }, FilterSixtySecondsTable |> Cmd.ofMsg
+    
+    
+
+let update message model =
+    match message, model.ActiveSubmodel with
+    | GameCountChanged games, SixtySeconds submodel ->
+        let updatedSubModel = { submodel with Filter = {submodel.Filter with GamesToCount = games}} 
+        { model with ActiveSubmodel = SixtySeconds updatedSubModel }, FilterSixtySecondsTable |> Cmd.ofMsg
         
-        { state with ActiveTab = newTab; FilteredTable = []}, FilterTable |> Cmd.ofMsg
+    | GameCountChanged games, Matrix submodel ->
+        let updatedSubModel = { submodel with Filter = {submodel.Filter with GamesToCount = games}} 
+        { model with ActiveSubmodel = Matrix updatedSubModel }, FilterMatrixTable |> Cmd.ofMsg
         
-    | FilterTable ->
+    | FinalGameCountsChanged counts, SixtySeconds submodel ->
         
-        let results =
-            match state.ActiveTab with
-            | SixtySeconds -> state.SixtySecondsResults
-            | Matrix -> state.MatrixResults
+        let updatedSubmodel = 
+            let maximumGames =
+                if counts then submodel.Results |> gamesAmount
+                else submodel.Results |> gamesAmount |> (+) -1
+            
+            let gamesToCount =
+                if counts then submodel.Filter.GamesToCount
+                else
+                    if submodel.Filter.GamesToCount > maximumGames then maximumGames else submodel.Filter.GamesToCount
+            let newFilter =
+                {
+                    submodel.Filter with
+                        GamesToCount = gamesToCount;
+                        RatingOption = if counts then FinalGameCounts else FinalGameDoesntCount
+                }
+                
+            { submodel with Filter = newFilter; MaximumGames = maximumGames}
+                
+        { model with ActiveSubmodel = SixtySeconds(updatedSubmodel) }, FilterSixtySecondsTable |> Cmd.ofMsg
+    
+    | FinalGameCountsChanged counts, Matrix submodel ->
+        
+        let updatedSubmodel = 
+            let maximumGames =
+                if counts then submodel.Results |> gamesAmount
+                else submodel.Results |> gamesAmount |> (+) -1
+            
+            let gamesToCount =
+                if counts then submodel.Filter.GamesToCount
+                else
+                    if submodel.Filter.GamesToCount > maximumGames then maximumGames else submodel.Filter.GamesToCount
+            let newFilter = { submodel.Filter with GamesToCount = gamesToCount; }
+                
+            { submodel with Filter = newFilter; MaximumGames = maximumGames}
+                
+        { model with ActiveSubmodel = Matrix updatedSubmodel }, FilterMatrixTable |> Cmd.ofMsg
+        
+    | FinalDateChanged dateOption, SixtySeconds submodel ->
+        
+        let updatedSubmodel = 
+            let finalDate =
+                match dateOption with
+                | Some date -> PlayedAlready date
+                | None -> NotPlayedYet
+            {submodel with Filter = {submodel.Filter with FinalDate = finalDate}}
+            
+        {model with ActiveSubmodel = SixtySeconds updatedSubmodel }, FilterSixtySecondsTable |> Cmd.ofMsg
+    
+    | TabChanged, SixtySeconds submodel ->
+        
+        let nextCmd = 
+            match model.MatrixSubModel.Table with
+            | [] -> FilterMatrixTable
+            | _ -> FilterSixtySecondsTable 
+        { model with SixtySecondsSubModel = submodel; ActiveSubmodel = Matrix model.MatrixSubModel;}, nextCmd |> Cmd.ofMsg 
+        
+    | TabChanged, Matrix submodel ->
+        
+        { model with MatrixSubModel = submodel; ActiveSubmodel = SixtySeconds model.SixtySecondsSubModel; }, FilterMatrixTable |> Cmd.ofMsg
+        
+    | FilterSixtySecondsTable, SixtySeconds submodel ->
+        
+        let results = model.SixtySecondsSubModel.Results
         
         let ofSuccess res =
             match res with
             | Ok value -> TableUpdated value
             | Error str -> TableNotUpdated str
         
-        state, Cmd.OfAsync.perform sixtySecondsApi.filterRating (state.Filter, results) ofSuccess
+        model, Cmd.OfAsync.perform sixtySecondsApi.filterRating (SixtySecondsFilter submodel.Filter, results) ofSuccess
         
-    | TableUpdated table -> {state with FilteredTable = table}, Cmd.none
+    | FilterMatrixTable, Matrix submodel ->
+        
+        let results = model.MatrixSubModel.Results
+        
+        let ofSuccess res =
+            match res with
+            | Ok value -> TableUpdated value
+            | Error str -> TableNotUpdated str
+        
+        model, Cmd.OfAsync.perform sixtySecondsApi.filterRating (MatrixFilter submodel.Filter, results) ofSuccess
+        
+    | SixtySecondsTableUpdated table, _ -> {model with SixtySecondsSubModel = {model.SixtySecondsSubModel with Table = table}}, Cmd.none
+    | MatrixTableUpdated table, _ -> {model with MatrixSubModel = ({model.MatrixSubModel with Table = table})}, Cmd.none
+    | TableUpdated table, SixtySeconds ss -> {model with ActiveSubmodel = SixtySeconds ({ss with Table = table})}, Cmd.none
+    | TableUpdated table, Matrix m -> {model with ActiveSubmodel = Matrix ({m with Table = table})}, Cmd.none
     // TODO rewrite it
-    | TableNotUpdated e -> failwith e
+    | TableNotUpdated e, _ -> failwith e
+    | _ -> model, Cmd.none
 
-let render state dispatch =
+let render model dispatch =
 
     let lines =
-        state.FilteredTable
+        let table = 
+            match model.ActiveSubmodel with
+            | SixtySeconds submodel -> submodel.Table
+            | Matrix submodel -> submodel.Table
+        table
         |> List.map (fun (team, points, place) -> tr[] [ td [] [str <| Place.toString place]; td [] [str team.Name]; td[] [str <| string points] ])
 
     let selectItems =
-        [1..state.MaximumGames]
+        let maximumGames =
+            match model.ActiveSubmodel with
+            | SixtySeconds submodel -> submodel.MaximumGames
+            | Matrix submodel -> submodel.MaximumGames
+        [1..maximumGames]
         |> List.map (fun i -> option [Value (string i)] [str <| string i])
         
     let selectFinalDate =
-        state.SixtySecondsResults
+        let results =
+            match model.ActiveSubmodel with
+            | SixtySeconds ss -> ss.Results
+            | Matrix m -> m.Results
+        results
         |> gameDates
         |> List.map (fun date -> option [Value (Some date)] [str <| sprintf "%d.%d.%d" date.Day date.Month date.Year])
         |> List.append [option [Value(None)] [str <| "Not played yet"]]
             
-    let finalGamesCount = match state.Filter.RatingOption with FinalGameDoesntCount _ -> false | _ -> true
-
-    div []
-        [
-            Level.level []
+    let finalGamesCount =
+        match model.ActiveSubmodel with
+        | SixtySeconds ss ->
+            match ss.Filter.RatingOption with
+            | FinalGameDoesntCount _ -> false
+            | _ -> true
+        | Matrix _ -> false
+        
+    let renderGamesToCount submodel =
+        
+        let gamesToCount =
+            match submodel with
+            | SixtySeconds ss -> ss.Filter.GamesToCount
+            | Matrix m -> m.Filter.GamesToCount
+        
+        Level.level []
                 [
                     Level.left []
                         [
@@ -145,27 +237,43 @@ let render state dispatch =
                                                 select
                                                     [
                                                         OnClick (fun x -> x.Value |> int |> GameCountChanged |> dispatch)
-                                                        Value state.Filter.GamesToCount
+                                                        Value gamesToCount 
                                                     ]
                                                     selectItems
                                             ]
                                 ]
-                                
-                            Level.item [] [str "Final game"]
-                            Level.item []
-                                [
-                                    Select.select []
-                                            [       
-                                                select
-                                                    [
-                                                        OnClick (fun x -> x.Value |> Utils.tryParseDateTime |> FinalDateChanged |> dispatch)
-                                                        Value (match state.Filter.FinalDate with PlayedAlready d -> Some d | NotPlayedYet -> None)
-                                                    ]
-                                                    selectFinalDate
-                                            ]
-                                ]
                         ]
                 ]
+
+    let renderFinalGameDate submodel =
+        match submodel with
+        | Matrix _ -> div [][]
+        | SixtySeconds ss -> 
+        
+            Level.level []
+                    [
+                        Level.left []
+                            [
+                                Level.item [] [str "Final game"]
+                                Level.item []
+                                    [
+                                        Select.select []
+                                                [       
+                                                    select
+                                                        [
+                                                            OnClick (fun x -> x.Value |> Utils.tryParseDateTime |> FinalDateChanged |> dispatch)
+                                                            DefaultValue (match ss.Filter.FinalDate with PlayedAlready d -> Some d | NotPlayedYet -> None)
+                                                        ]
+                                                        selectFinalDate
+                                                ]
+                                    ]
+                            ]
+                    ]
+    
+    let renderFinalGameCounts submodel =
+        match submodel with
+        | Matrix _ -> div [] []
+        | SixtySeconds _ -> 
             Level.level []
                 [
                     Level.left []
@@ -187,26 +295,33 @@ let render state dispatch =
                                 ]
                         ]
                 ]
-                
-            Tabs.tabs [Tabs.Size IsLarge]
+    
+    
+    div []
+        [
+            Tabs.tabs []
                 [
                     Tabs.tab
                         [
-                            Tabs.Tab.IsActive (match state.ActiveTab with SixtySeconds -> true | _ -> false)
-                            Tabs.Tab.Option.Props [OnClick (fun _ -> SixtySeconds |> TabChanged |> dispatch)]
+                            Tabs.Tab.IsActive (match model.ActiveSubmodel with SixtySeconds _ -> true | _ -> false)
+                            Tabs.Tab.Option.Props [OnClick (fun _ -> TabChanged |> dispatch)]
                         ]
                         [
                             a [] [str "60 seconds"]
                         ]
                     Tabs.tab
                         [
-                            Tabs.Tab.IsActive (match state.ActiveTab with Matrix -> true | _ -> false)
-                            Tabs.Tab.Option.Props [OnClick (fun _ -> Matrix |> TabChanged |> dispatch)]
+                            Tabs.Tab.IsActive (match model.ActiveSubmodel with Matrix _ -> true | _ -> false)
+                            Tabs.Tab.Option.Props [OnClick (fun _ -> TabChanged |> dispatch)]
                         ]
                         [
                             a [] [str "Matrix"]
                         ]
                 ]
+                
+            renderGamesToCount model.ActiveSubmodel
+            renderFinalGameDate model.ActiveSubmodel
+            renderFinalGameCounts model.ActiveSubmodel
                 
             Table.table [Table.IsBordered; Table.IsStriped; Table.IsHoverable; ]
                 [

@@ -1,6 +1,10 @@
 module Client.Tests
 
+#if FABLE_COMPILER
 open Fable.Mocha
+#else
+open Expecto
+#endif
 
 open Shared.Models
 open System
@@ -40,6 +44,7 @@ let matrixSeason : MatrixSeasonModel =
         ]
         |> Map.ofList
 
+[<Tests>]
 let client = testList "Client" [
     
     testCase "Bad url entered" <| fun _ ->
@@ -153,21 +158,35 @@ let client = testList "Client" [
         
         let initialModel, _ = SeasonInfoPage.init secondsSeason matrixSeason
         
+        let option =
+            match initialModel.ActiveSubmodel with
+            | SeasonInfoPage.SixtySeconds f -> f.Filter.RatingOption
+            | SeasonInfoPage.Matrix f -> FinalGameDoesntCount
+        
         let expected = FinalGameCounts
-        Expect.equal initialModel.Filter.RatingOption expected "Final games should be counted by default"
+        Expect.equal option expected "Final games should be counted by default"
         
     testCase "Season table: final game has not played by default" <| fun _ ->
         
         let initialModel, _ = SeasonInfoPage.init secondsSeason matrixSeason
         
-        let expected = NotPlayedYet 
-        Expect.equal initialModel.Filter.FinalDate expected "Final games should be not played by default"
+        let actual =
+            match initialModel.ActiveSubmodel with
+            | SeasonInfoPage.SixtySeconds f -> f.Filter.FinalDate
+            | SeasonInfoPage.Matrix f -> NotPlayedYet
+         
+        Expect.equal actual NotPlayedYet "Final games should be not played by default"
         
     testCase "Season table has maximum games to count by default" <| fun _ ->
             
         let initialModel, _ = SeasonInfoPage.init secondsSeason matrixSeason
         
-        Expect.equal initialModel.MaximumGames initialModel.Filter.GamesToCount  "Season table has maximum games to count by default"
+        let expected, actual =
+            match initialModel.ActiveSubmodel with
+            | SeasonInfoPage.SixtySeconds f -> f.Filter.GamesToCount, f.MaximumGames
+            | SeasonInfoPage.Matrix f -> f.Filter.GamesToCount, f.MaximumGames
+        
+        Expect.equal actual expected "Season table has maximum games to count by default"
         
     testCase "Season table: when final game doesn't count then maximum games is lesser by one" <| fun _ ->
             
@@ -175,10 +194,15 @@ let client = testList "Client" [
             matrixSeason
             |> SeasonInfoPage.init secondsSeason
             |> fst
-            |> SeasonInfoPage.update (SeasonInfoPage.Message.FinalGameCountsChanged(false))
+            |> SeasonInfoPage.update (SeasonInfoPage.FinalGameCountsChanged(false))
             |> fst
         
-        Expect.equal model.MaximumGames 2 "Season table has maximum games to count by default"
+        let actual =
+            match model.ActiveSubmodel with
+            | SeasonInfoPage.SixtySeconds f -> f.MaximumGames
+            | SeasonInfoPage.Matrix f -> f.MaximumGames
+        
+        Expect.equal actual 2 "Season table has maximum games to count by default"
         
     testCase "Season table: 60 seconds table is chosen by default" <| fun _ ->
             
@@ -186,8 +210,13 @@ let client = testList "Client" [
             matrixSeason
             |> SeasonInfoPage.init secondsSeason
             |> fst
+            
+        let is60secTab =
+            match model.ActiveSubmodel with
+            | SeasonInfoPage.Matrix  _ -> true
+            | SeasonInfoPage.SixtySeconds _ -> false
         
-        Expect.equal model.ActiveTab SeasonInfoPage.SixtySeconds "Season table has chosen 60 seconds tab by default"
+        Expect.isTrue is60secTab "Season table has chosen 60 seconds tab by default"
         
     testCase "Season table: choose matrix tab" <| fun _ ->
             
@@ -195,12 +224,17 @@ let client = testList "Client" [
             matrixSeason
             |> SeasonInfoPage.init secondsSeason
             |> fst
-            |> SeasonInfoPage.update (SeasonInfoPage.TabChanged(SeasonInfoPage.Matrix))
+            |> SeasonInfoPage.update SeasonInfoPage.TabChanged
             |> fst
         
-        Expect.equal model.ActiveTab SeasonInfoPage.Matrix "Must be matrix"
+        let isMatrixTab =
+            match model.ActiveSubmodel with
+            | SeasonInfoPage.Matrix  _ -> false
+            | SeasonInfoPage.SixtySeconds _ -> true
         
-    testCase "Season table: changing tab updates table" <| fun _ ->
+        Expect.isTrue isMatrixTab "Must be matrix"
+        
+    (*testCase "Season table: changing tab updates table" <| fun _ ->
             
         let cmd = 
             matrixSeason
@@ -211,6 +245,7 @@ let client = testList "Client" [
         
         
         Expect.notEqual cmd Elmish.Cmd.none "Must be command"
+        *)
 ]
 
 let all =
@@ -223,4 +258,9 @@ let all =
         ]
 
 [<EntryPoint>]
-let main _ = Mocha.runTests all
+let main args =
+#if FABLE_COMPILER
+    Mocha.runTests all
+#else
+    runTestsWithArgs defaultConfig args all
+#endif
