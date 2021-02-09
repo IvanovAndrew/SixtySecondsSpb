@@ -13,6 +13,7 @@
     <Compile Include="ExtensionTests.fs" />
     <Compile Include="RatingTests.fs" />
     <Compile Include="TeamTests.fs" />
+    <Compile Include="ParserTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SixtySeconds.Data\SixtySeconds.Data.fsproj" />
     <ProjectReference Include="..\SixtySeconds\SixtySeconds.fsproj" />
   </ItemGroup>
   
