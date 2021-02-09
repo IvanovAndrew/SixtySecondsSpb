@@ -1,4 +1,4 @@
-﻿namespace SixtySeconds.Services
+namespace SixtySeconds.Services
 
 module SpreadsheetService = 
 
@@ -80,12 +80,12 @@ module SpreadsheetService =
                 let list = input |> List.ofSeq
             
                 match list with 
-                | first :: second :: [] -> 
+                | [ first; second ] -> 
                     {
                         Number = first |> string |> int
                         Question = second |> string |> Some
                     }
-                | first :: [] -> 
+                | [ first ] -> 
                     {
                         Number = first |> string |> int
                         Question = None
