@@ -11,7 +11,6 @@ module SpreadsheetService =
     open System
     open System.IO
     open System.Threading
-    open Utils
 
     type ServiceMode = 
         | ReadOnly
@@ -35,11 +34,18 @@ module SpreadsheetService =
                 | ReadOnly -> [| SheetsService.Scope.SpreadsheetsReadonly |]
                 | ReadWrite -> [| SheetsService.Scope.Spreadsheets |]
 
-            let applicationName = "Sixty seconds info"
             let directory =
+                
                 let parent str = (Directory.GetParent str).FullName
-                let basePath = Environment.CurrentDirectory |> parent |> parent |> parent
-                Path.Combine(basePath, "SixtySeconds")
+                let directoryName str = str |> DirectoryInfo |> (fun di -> di.Name) 
+                
+                let rec findDirectory name folder =
+                    if folder |> directoryName |> ((=) name) then folder
+                    else findDirectory name <| parent folder
+                
+                Environment.CurrentDirectory
+                |> findDirectory "SixtySecondsSpb"
+                
                 
             let credPath = Path.Combine(directory,  
                                         "../.credentials/sheets.googleapis.com-dotnet-quickstart.json")
@@ -49,11 +55,11 @@ module SpreadsheetService =
                                 scopes,
                                 "user",
                                 CancellationToken.None,
-                                new FileDataStore(credPath, true))
+                                FileDataStore(credPath, true))
                                 |> Async.AwaitTask 
 
-            let baseService = new BaseClientService.Initializer()
-            baseService.ApplicationName <- applicationName
+            let baseService = BaseClientService.Initializer()
+            baseService.ApplicationName <- "Sixty seconds info"
             baseService.HttpClientInitializer <- credential
             return new SheetsService(baseService)
         }
