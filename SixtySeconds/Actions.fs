@@ -1,14 +1,14 @@
 namespace SixtySeconds
 
+open System
+open System.Text
+
 module Actions = 
 
     open Domain
     open SixtySeconds.Common.CommonTypes
+    open SixtySeconds.Common.Errors
     open Utils
-    open System.Text
-    
-    open System
-
 
     let createTeam id name =
         result {
@@ -43,9 +43,8 @@ module Actions =
             
             let checkQuestionsCount a = 
                 
-                // TODO special error
                 let count = a |> Answers.count
-                if count = gameDay.PackageSize.Value then Ok() else Error "Questions count mismatching"
+                if count = gameDay.PackageSize.Value then Ok() else DomainError.QuestionsCountMismatching(count, gameDay.PackageSize.Value) |> Error
 
             let checkIfTeamAdded t = 
                 
@@ -53,8 +52,7 @@ module Actions =
                     gameDay.Answers
                     |> Map.containsKey t
 
-                // TODO special error
-                if teamAdded then sprintf "Team %s is already added" <| t.Name.Value |> Error 
+                if teamAdded then t.Name.Value |> TeamAlreadyAdded |> Error 
                 else Ok()
 
             result{

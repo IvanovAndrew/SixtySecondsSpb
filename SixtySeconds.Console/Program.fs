@@ -10,9 +10,10 @@ open SixtySeconds.Common.ErrorMessages
 
 open SixtySeconds.Services
 
-open SixtySeconds.Domain
 open SixtySeconds.Actions
-open SixtySeconds.SixtySecondsProgramBuilder
+open SixtySeconds.Domain
+open SixtySeconds.Data
+
 open Shared.Models
 open Shared.Utils
 
@@ -183,7 +184,7 @@ let main argv =
                         |> Url.create
                         
                     match url with
-                    | Ok u -> Parser.asyncLoadDocument u
+                    | Ok u -> DataLoader.asyncLoadDocument u
                     // TODO remove it
                     | Error e -> failwith e
                 
@@ -210,7 +211,7 @@ let main argv =
                         |> Url.create
                     
                     match url with
-                    | Ok v -> Parser.asyncLoadDocument v
+                    | Ok v -> DataLoader.asyncLoadDocument v
                     // TODO remove it
                     | Error e -> failwith "Wrong url"
                     

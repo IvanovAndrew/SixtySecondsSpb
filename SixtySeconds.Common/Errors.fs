@@ -2,6 +2,10 @@
 
 module Errors =
     
+    type DomainError =
+        | TeamAlreadyAdded of string
+        | QuestionsCountMismatching of actual: int * expected: int
+    
     type ParsingError =
     | MissingSheetName
     | MissingCityName
@@ -15,10 +19,10 @@ module Errors =
     | TeamParsingError of string
     | AnswersParsingError of string
     | SheetNotFound of string
-    | DuplicatedTeam of string
     | SeasonHasNotStarted
     | UnexpectedSite of string
     | UnexpectedJson of string
+    | BusinessError of DomainError
     
     
     type WebRequestError = 
@@ -42,13 +46,13 @@ module Errors =
     let expectTableColumnNotFoundError result = result |> Result.mapError TableColumnNotFound
     let expectCantParseDateError result = result |> Result.mapError CantParseDate
     let expectTeamParsingError result = result |> Result.mapError TeamParsingError
-    let expectDuplicatedTeam result = result |> Result.mapError DuplicatedTeam
     let expectMissingCityName result = result |> Result.mapError (fun _ -> MissingLeagueName)
     let expectMissingLeagueName result = result |> Result.mapError (fun _ -> MissingLeagueName)
     let expectMissingSeasonName result = result |> Result.mapError (fun _ -> MissingSeasonName)
     let expectMissingGameName result = result |> Result.mapError (fun _ -> MissingGameName)
     let expectSeasonHasNotStartedError result = result |> Result.mapError (fun _ -> SeasonHasNotStarted)
     let expectMissingAnswers result = result |> Result.mapError (fun _ -> MissingAnswersCount)
+    let expectDomainError result = result |> Result.mapError BusinessError
     
     
     (*

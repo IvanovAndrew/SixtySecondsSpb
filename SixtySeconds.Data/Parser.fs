@@ -10,46 +10,6 @@ open SixtySeconds.Actions
 open SixtySeconds.Common.Errors
 open SixtySeconds.Common.CommonTypes
 
-let asyncLoadString url =
-    async {
-        let urlString = Url.value url
-        let! response = Http.AsyncRequest(urlString, silentHttpErrors = true)
-        
-        let result = 
-            if response.StatusCode <> 200 then urlString |> pageNotFound 
-            else
-                match response.Body with 
-                | HttpResponseBody.Text text -> 
-                    text
-                    |> Ok
-                | _ -> unexpectedResponse() 
-
-        return result
-    }
-
-let asyncLoadDocument url = 
-    
-    async {
-        let urlString = Url.value url
-        let! response = Http.AsyncRequest(urlString, silentHttpErrors = true)
-
-        let result = 
-            if response.StatusCode <> 200 then urlString |> pageNotFound 
-            else
-                match response.Body with 
-                | HttpResponseBody.Text text -> 
-                    
-                    if text.Contains("Ошибка \"404\"") then urlString |> pageNotFound
-                    else 
-                        text
-                        |> String.replace "<style>@import url(https://fonts.googleapis.com/css?kit=o--8Et3j0xElSo4Jk-6CSN_pgL91BiSHK8etQbSopkk);</style>" "" 
-                        |> HtmlDocument.Parse 
-                        |> Ok
-                | _ -> unexpectedResponse() 
-
-        return result
-    }
-
 type ParserOption = 
     {
         IdColumn : int 
@@ -159,7 +119,7 @@ let private createGameDay gameDay parse teamsToParse =
         let addTeam gameDay =
             gameDay
             |> GameDay.withTeam team answers
-            |> Result.mapError (fun _ -> team.Name.Value |> DuplicatedTeam)
+            |> expectDomainError
         
         gameDaySoFar
         |> Result.bind addTeam
@@ -170,8 +130,6 @@ let private createGameDay gameDay parse teamsToParse =
     |> Result.bind (fun seq -> seq |> Seq.fold (fun acc (team, answers) -> updateGameDay acc team answers) gameDay)
     
     
-    
-
 let parseGameday (gameName : GameName) (document : HtmlDocument) = 
     
     let number = "№"
@@ -290,6 +248,72 @@ let parseGameday (gameName : GameName) (document : HtmlDocument) =
 
     gameDay
     
+let parseTournamentInfo document =
+        
+    let headerDiv =
+        document
+        |> HtmlDocument.body
+        |> HtmlNode.elementWithId "header"
+    
+    let grandChild = 
+        headerDiv
+        |> HtmlNode.firstElement
+        |> HtmlNode.firstElement
+        |> HtmlNode.firstElement
+        |> HtmlNode.firstElement
+        |> HtmlNode.firstElement
+    
+    let city, league, seasonName =
+        let lastChild = 
+            grandChild
+            |> HtmlNode.elements
+            |> List.last
+            |> HtmlNode.elements
+        
+        match lastChild with
+        | [city; league; _; season; _ ] ->
+            city |> HtmlNode.innerText,
+            league |> HtmlNode.innerText,
+            season |> HtmlNode.innerText
+            
+        | _ -> "", "", ""
+    
+    result {
+        let! cityName = city |> NoEmptyString.ofString |> expectMissingCityName
+        let! leagueName = league |> NoEmptyString.ofString |> expectMissingLeagueName
+        let! seasonName = seasonName |> NoEmptyString.ofString |> expectMissingSeasonName
+        
+        return
+            {
+                City = cityName
+                League = leagueName
+                Season = seasonName
+            }
+    }
+    
+    
+let parseGameName document =
+        
+    let headerDiv =
+        document
+        |> HtmlDocument.body
+        |> HtmlNode.elementWithId "header"
+    
+    let grandChild = 
+        headerDiv
+        |> HtmlNode.firstElement
+        |> HtmlNode.firstElement
+        |> HtmlNode.firstElement
+        |> HtmlNode.firstElement
+        |> HtmlNode.firstElement
+    
+    grandChild
+    |> HtmlNode.firstElement
+    |> HtmlNode.innerText
+    |> NoEmptyString.ofString
+    |> expectMissingGameName
+    
+    
 let parse60SecondGameDay tournamentInfo gameName json =
     
     let parseTeam teamJson =
@@ -333,7 +357,6 @@ let parse60SecondGameDay tournamentInfo gameName json =
             }
             |> expectMissingAnswers
             
-        
         seq {
             for jsonTeam in teamResults do
                 yield jsonTeam 
@@ -354,7 +377,7 @@ let private parseDate str =
         
     match dateParts with
     | [|day; month; year|] -> Ok <| DateTime((if year < 100 then 2000 + year else year), month, day)
-    | _ -> Error <| sprintf "Can not parse date %s" str
+    | _ -> Error <| sprintf "%s" str
     
 let private parseResultInfo options (index, value) =
     let date =
@@ -501,6 +524,7 @@ let parseTotalFromGoogleSpreadsheet document =
 let parseTotalFrom60SecSite document =
     
     let tableNodes attr =
+
         let node = 
             document
             |> HtmlDocument.body
@@ -563,10 +587,12 @@ let parseTotalFrom60SecSite document =
         let team() =
             let teamId =
                 let attrValue = 
-                    node 
-                    |> HtmlNode.elements
-                    |> Seq.item options.TeamIdColumn
-                    |> HtmlNode.elements
+                    let elements = 
+                        node 
+                        |> HtmlNode.elements
+                        |> Seq.item options.TeamIdColumn
+                        |> HtmlNode.elements
+                    elements
                     |> List.head
                     |> HtmlNode.attributes
                     |> List.find (fun a -> a.Name() = "href")

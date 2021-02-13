@@ -1,5 +1,6 @@
 ﻿namespace GameDay.Tests
 
+open SixtySeconds.Common.Errors
 open SixtySeconds.Common.CommonTypes
 open SixtySeconds.Domain
 open SixtySeconds.Actions
@@ -68,8 +69,11 @@ module GameDayPropertiesTests =
             |> GameDay.withTeam existingTeam (gameDay.Answers |> Map.find existingTeam)
             
         match actual with
-        | Ok data -> false
-        | Error message -> String.containsSubstring "is already added" message 
+        | Ok _ -> false
+        | Error domainError ->
+            match domainError with
+            | TeamAlreadyAdded team when team = existingTeam.Name.Value -> true
+            | _ -> false
             
         
     [<Property(QuietOnSuccess = true)>]
@@ -86,7 +90,10 @@ module GameDayPropertiesTests =
             
             match gameDay |> GameDay.withTeam customTeam answers with
             | Ok _ -> false
-            | Error message -> String.containsSubstring "Questions count" message
+            | Error domainError ->
+                match domainError with
+                | QuestionsCountMismatching _ -> true
+                | _ -> false
                 
         (precondition num1 num2) ==> lazy(property num1 num2)
         

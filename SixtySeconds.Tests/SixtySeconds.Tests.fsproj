@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SixtySeconds.Data\SixtySeconds.Data.fsproj" />
+    <ProjectReference Include="..\SixtySeconds.Services\SixtySeconds.Services.fsproj" />
     <ProjectReference Include="..\SixtySeconds\SixtySeconds.fsproj" />
   </ItemGroup>
   

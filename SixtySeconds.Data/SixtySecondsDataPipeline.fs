@@ -1,6 +1,7 @@
 ﻿namespace SixtySeconds.Data
 
 open FSharp.Data
+open SixtySeconds.Data.DataLoader
 
 module SixtySecondsDataPipeline =
     
@@ -14,81 +15,7 @@ module SixtySecondsDataPipeline =
     type ParseGameDayAsync = Url -> GameName -> AsyncResult<GameDay, SixtySecondsError>
     type GameDayRatingAsync = GameDay -> Async<GameDayRating>
     type ParseSeasonRating = Url -> AsyncResult<SixtySecondsSeason * MatrixSeason, SixtySecondsError>
-    type TopNResultsTable = SeasonResultFilter -> SeasonResults -> Async<SeasonRating>
-    
-    
-    
-    
-    let private parseTournamentInfo document =
-        
-        let headerDiv =
-            document
-            |> HtmlDocument.body
-            |> HtmlNode.elementWithId "header"
-        
-        let grandChild = 
-            headerDiv
-            |> HtmlNode.firstElement
-            |> HtmlNode.firstElement
-            |> HtmlNode.firstElement
-            |> HtmlNode.firstElement
-            |> HtmlNode.firstElement
-        
-        let gameName = 
-            grandChild
-            |> HtmlNode.firstElement
-            |> HtmlNode.innerText
-        
-        
-        let city, league, seasonName =
-            let lastChild = 
-                grandChild
-                |> HtmlNode.elements
-                |> List.last
-                |> HtmlNode.elements
-            
-            match lastChild with
-            | [city; league; _; season; _ ] ->
-                city |> HtmlNode.innerText,
-                league |> HtmlNode.innerText,
-                season |> HtmlNode.innerText
-                
-            | _ -> "", "", ""
-        
-        result {
-            let! cityName = city |> NoEmptyString.ofString |> expectMissingCityName
-            let! leagueName = league |> NoEmptyString.ofString |> expectMissingLeagueName
-            let! seasonName = seasonName |> NoEmptyString.ofString |> expectMissingSeasonName
-            
-            return
-                {
-                    City = cityName
-                    League = leagueName
-                    Season = seasonName
-                }
-        }
-        
-    let private parseGamename document =
-        
-        let headerDiv =
-            document
-            |> HtmlDocument.body
-            |> HtmlNode.elementWithId "header"
-        
-        let grandChild = 
-            headerDiv
-            |> HtmlNode.firstElement
-            |> HtmlNode.firstElement
-            |> HtmlNode.firstElement
-            |> HtmlNode.firstElement
-            |> HtmlNode.firstElement
-        
-        grandChild
-        |> HtmlNode.firstElement
-        |> HtmlNode.innerText
-        |> NoEmptyString.ofString
-        |> expectMissingGameName
-        
+    type TopNResultsTable = SeasonResultFilter -> SeasonResults -> Async<SeasonRating>        
         
     let private asyncParse60SecondSite gameId =
         async {
@@ -110,7 +37,7 @@ module SixtySecondsDataPipeline =
                 result {
                     let! document = tournamentDocument |> expectWebRequestError
                     let! tournament = parseTournamentInfo document |> expectParsingError
-                    let! gameName = parseGamename document |> expectParsingError
+                    let! gameName = parseGameName document |> expectParsingError
                     
                     return! parse60SecondGameDay tournament gameName json |> expectParsingError
                 }
@@ -127,7 +54,7 @@ module SixtySecondsDataPipeline =
             return
                 document
                 |> expectWebRequestError
-                |> Result.bind (fun d -> d |> Parser.parseGameday game |> expectParsingError)
+                |> Result.bind (fun d -> d |> parseGameday game |> expectParsingError)
         }
     
     let parseGameDayAsync : ParseGameDayAsync =

@@ -13,12 +13,15 @@ let errorToString = function
         | MissingAnswersCount -> "Missing answers count"
         | CantParseDate d -> sprintf "Can't parse string %s as date" d
         | AnswersParsingError err -> sprintf "Can not parse answers. %s" err
-        | TableNotFound tableid -> sprintf "Table with %s not found" tableid
+        | TableNotFound tableid -> sprintf "Table with id %s not found" tableid
         | TableColumnNotFound column -> sprintf "Table column %s not found" column
         | TeamParsingError err -> sprintf "Can not parse team. %s" err
         | SheetNotFound sheetName -> sprintf "Sheet %s not found" sheetName
         | SeasonHasNotStarted -> "Season hasn't started yet"
-        | DuplicatedTeam team -> sprintf "Team %s is already added " team
+        | BusinessError e ->
+            match e with
+            | TeamAlreadyAdded team -> sprintf "Team %s is already added " team
+            | QuestionsCountMismatching (actual, expected) -> sprintf "Questions mismatching: actual %d, expected %d" actual expected 
         | UnexpectedSite url -> sprintf "Wrong site type %s" url
         | UnexpectedJson str -> sprintf "Unexpected json %s" str
     | WebRequestError error ->
